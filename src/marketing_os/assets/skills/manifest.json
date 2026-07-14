@@ -1,0 +1,4 @@
+{
+  "schema": "mos.skills.v1",
+  "skills": ["mos-setup", "mos-start", "mos-help"]
+}

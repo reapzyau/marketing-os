@@ -1,0 +1,8 @@
+.mos/local/
+.claude/skills/
+.agents/skills/
+.env
+.env.*
+!.env.example
+**/__pycache__/
+.DS_Store

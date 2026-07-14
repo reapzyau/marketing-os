@@ -1,0 +1,34 @@
+---
+name: mos-help
+description: Explain marketing-os setup, architecture, routing, status, validation, and Claude Code or Codex wiring.
+---
+
+# Help
+
+Answer in plain business language using current facts rather than remembered command syntax.
+
+## Sources of truth
+
+- Use `mos --help` and `mos <command> --help` for command syntax.
+- For repository-specific questions, run `mos status . --json`.
+- For health or discovery questions, run `mos doctor . --json`.
+- Use `BRAIN.md` for routing and safety rules.
+
+## System model
+
+- `business/` is the sole source of business truth.
+- `knowledge/` holds immutable sources and maintainable synthesized knowledge.
+- `content/`, `campaigns/`, `reporting/`, and `outputs/` hold execution work.
+- `mos` owns deterministic setup, facts, validation, and runtime wiring.
+- The agent owns interviewing, judgment, synthesis, and writing.
+- Claude Code and Codex consume generated copies of the same packaged skills.
+
+## Common routes
+
+- New or incomplete repository: `mos-setup`.
+- Daily orientation: `mos-start`.
+- Structural errors: `mos validate . --json`.
+- Runtime discovery errors: preview and then apply `mos skills sync`.
+
+Explain the outcome first. Include technical commands only when they help the user act or verify.
+Do not claim that an uninstalled skill or unsupported command exists.

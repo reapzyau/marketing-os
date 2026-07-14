@@ -1,0 +1,59 @@
+{
+  "schema": "mos.business-repo.v1",
+  "version": 1,
+  "required_directories": [
+    ".mos",
+    "business",
+    "business/brand",
+    "business/brand/assets",
+    "business/audience",
+    "business/offers",
+    "business/strategy",
+    "business/proof",
+    "business/operations",
+    "business/decisions",
+    "knowledge",
+    "knowledge/sources",
+    "knowledge/wiki",
+    "content",
+    "campaigns",
+    "reporting",
+    "outputs",
+    "archive"
+  ],
+  "required_files": [
+    ".mos/config.yaml",
+    ".gitignore",
+    "BRAIN.md",
+    "CONTEXT.md",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "README.md",
+    "business/brand/brand.md",
+    "business/brand/voice.md",
+    "business/audience/primary.md",
+    "business/strategy/strategy.md",
+    "business/strategy/goals.md",
+    "business/strategy/roadmap.md",
+    "business/proof/testimonials.md",
+    "knowledge/wiki/_index.md",
+    "knowledge/wiki/_log.md"
+  ],
+  "allowed_top_level": [
+    "business",
+    "knowledge",
+    "content",
+    "campaigns",
+    "reporting",
+    "outputs",
+    "archive"
+  ],
+  "context_files": {
+    "brand": "business/brand/brand.md",
+    "voice": "business/brand/voice.md",
+    "audience": "business/audience/primary.md",
+    "strategy": "business/strategy/strategy.md",
+    "proof": "business/proof/testimonials.md"
+  },
+  "excluded_from_grounding": ["archive"]
+}
