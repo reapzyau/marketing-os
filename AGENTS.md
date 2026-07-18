@@ -8,3 +8,4 @@ This is the marketing-os engine repository, not a business repository.
 - Do not copy files from predecessor implementations; implement from this repository's contracts.
 - Run `ruff check .`, `pytest`, the clean-language gate, and a wheel smoke before handoff.
 - Keep credentials, customer data, provider exports, and machine-local state out of git.
+- Start from [the documentation index](docs/README.md) for architecture, contracts, and references.

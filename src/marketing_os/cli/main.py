@@ -8,6 +8,9 @@ from pathlib import Path
 from typing import Any
 
 from marketing_os import __version__
+from marketing_os.core.ingest import ingest_repo, pending_sources
+from marketing_os.core.onboard import onboard_repo
+from marketing_os.core.query import query_repo
 from marketing_os.core.results import envelope, next_action
 from marketing_os.core.setup import setup_repo
 from marketing_os.core.skills import (
@@ -17,9 +20,13 @@ from marketing_os.core.skills import (
     project_manifest,
 )
 from marketing_os.core.status import doctor_repo, status_repo
+from marketing_os.core.statusline import statusline_repo
+from marketing_os.core.think import think_repo
+from marketing_os.core.update import update_engine
 from marketing_os.core.validation import validate_repo
 
 RUNTIMES = ("claude", "codex", "all")
+MODES = ("in-house", "agency", "client")
 
 
 def _path(value: str) -> Path:
@@ -36,8 +43,8 @@ def _add_output(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--json", action="store_true", dest="json_out", help="Emit JSON only.")
 
 
-def _add_mutation(parser: argparse.ArgumentParser) -> None:
-    group = parser.add_mutually_exclusive_group(required=True)
+def _add_mutation(parser: argparse.ArgumentParser, *, required: bool = True) -> None:
+    group = parser.add_mutually_exclusive_group(required=required)
     group.add_argument("--plan", action="store_true", help="Preview changes without writing.")
     group.add_argument("--yes", action="store_true", help="Apply the reviewed changes.")
 
@@ -55,6 +62,18 @@ def build_parser() -> argparse.ArgumentParser:
     setup = commands.add_parser("setup", help="Plan or create a canonical business brain.")
     setup.add_argument("path", nargs="?", default=".")
     setup.add_argument("--name", required=True, help="Business display name.")
+    setup.add_argument(
+        "--mode",
+        choices=MODES,
+        default=None,
+        help="Repository mode: in-house (one brand you own), agency (serves clients; "
+        "adds a client registry), or client (one agency client). Required.",
+    )
+    setup.add_argument(
+        "--agency",
+        default=None,
+        help="Agency business name; required for --mode client, ignored otherwise.",
+    )
     setup.add_argument("--runtime", choices=RUNTIMES, default="all")
     _add_mutation(setup)
     _add_output(setup)
@@ -80,6 +99,68 @@ def build_parser() -> argparse.ArgumentParser:
     sync.add_argument("--runtime", choices=RUNTIMES, default="all")
     _add_mutation(sync)
     _add_output(sync)
+
+    ingest = commands.add_parser("ingest", help="Capture raw material into knowledge/sources.")
+    ingest.add_argument(
+        "source",
+        nargs="?",
+        default=None,
+        help="File, directory, URL, or text; requires --plan or --yes.",
+    )
+    ingest.add_argument("path", nargs="?", default=".")
+    ingest.add_argument("--topic", default=None, help="Metadata-only topic label for the capture.")
+    ingest.add_argument("--slug", default=None, help="Override the derived slug.")
+    ingest.add_argument("--date", default=None, help="Capture date as YYYY-MM-DD (defaults today).")
+    ingest.add_argument(
+        "--pending",
+        action="store_true",
+        help="List captured sources not yet compiled "
+        "(read-only; omit SOURCE and --plan/--yes; optional positional is the repo path).",
+    )
+    _add_mutation(ingest, required=False)
+    _add_output(ingest)
+
+    query = commands.add_parser("query", help="Plan deterministic retrieval for a question.")
+    query.add_argument("question", help="The question to answer from the brain.")
+    query.add_argument("path", nargs="?", default=".")
+    query.add_argument("--limit", type=int, default=5, help="Maximum candidate documents.")
+    _add_output(query)
+
+    think = commands.add_parser("think", help="Emit a grounded thinking handoff for a topic.")
+    think.add_argument("topic", help="The topic to reason about.")
+    think.add_argument("path", nargs="?", default=".")
+    _add_output(think)
+
+    onboard = commands.add_parser("onboard", help="Scaffold a brain and hand off the interview.")
+    onboard.add_argument("path", nargs="?", default=".")
+    onboard.add_argument("--name", required=True, help="Business display name.")
+    onboard.add_argument(
+        "--mode",
+        choices=MODES,
+        default=None,
+        help="Repository mode: in-house, agency, or client. Required.",
+    )
+    onboard.add_argument(
+        "--agency",
+        default=None,
+        help="Agency business name; required for --mode client, ignored otherwise.",
+    )
+    onboard.add_argument(
+        "--hq",
+        default=None,
+        help="Path to the agency HQ repo; in client mode appends a registry row there.",
+    )
+    onboard.add_argument("--runtime", choices=RUNTIMES, default="all")
+    _add_mutation(onboard)
+    _add_output(onboard)
+
+    update = commands.add_parser("update", help="Update the marketing-os engine itself.")
+    _add_mutation(update)
+    _add_output(update)
+
+    statusline = commands.add_parser("statusline", help="Print a one-line ambient status badge.")
+    statusline.add_argument("path", nargs="?", default=".")
+    _add_output(statusline)
     return parser
 
 
@@ -124,7 +205,14 @@ def dispatch(args: argparse.Namespace) -> dict[str, Any]:
             Path.home(), args.runtime, apply=_mutation_mode(args), global_install=True
         )
     if args.command == "setup":
-        return setup_repo(_path(args.path), args.name, args.runtime, apply=_mutation_mode(args))
+        return setup_repo(
+            _path(args.path),
+            args.name,
+            args.runtime,
+            mode=args.mode,
+            agency=args.agency,
+            apply=_mutation_mode(args),
+        )
     if args.command == "status":
         return status_repo(_path(args.path))
     if args.command == "validate":
@@ -135,12 +223,54 @@ def dispatch(args: argparse.Namespace) -> dict[str, Any]:
         return _sync_result(
             _path(args.path), args.runtime, apply=_mutation_mode(args), global_install=False
         )
+    if args.command == "ingest":
+        if args.pending:
+            if args.plan or args.yes:
+                raise ValueError(
+                    "--pending is read-only; do not combine it with --plan or --yes"
+                )
+            # --pending takes only an optional [path]; argparse fills `source` first,
+            # so a lone positional is the path. Two positionals is ambiguous.
+            if args.path != ".":
+                raise ValueError("--pending takes only an optional PATH argument")
+            where = args.source if args.source is not None else args.path
+            return pending_sources(_path(where))
+        if args.source is None:
+            raise ValueError("ingest requires a SOURCE (or --pending to list captures)")
+        return ingest_repo(
+            _path(args.path),
+            args.source,
+            topic=args.topic,
+            slug=args.slug,
+            date=args.date,
+            apply=_mutation_mode(args),
+        )
+    if args.command == "query":
+        return query_repo(_path(args.path), args.question, limit=args.limit)
+    if args.command == "think":
+        return think_repo(_path(args.path), args.topic)
+    if args.command == "onboard":
+        return onboard_repo(
+            _path(args.path),
+            args.name,
+            args.runtime,
+            mode=args.mode,
+            agency=args.agency,
+            hq=_path(args.hq) if args.hq else None,
+            apply=_mutation_mode(args),
+        )
+    if args.command == "update":
+        return update_engine(apply=_mutation_mode(args))
+    if args.command == "statusline":
+        return statusline_repo(_path(args.path))
     raise ValueError("unsupported command")
 
 
 def _render_human(result: dict[str, Any]) -> str:
     state = "OK" if result["ok"] else "NEEDS ATTENTION"
     lines = [f"{state}: {result['command']}", f"Repository: {result['repo']}"]
+    if result.get("mode"):
+        lines.append(f"Mode: {result['mode']}")
     if result["changes"]:
         lines.append("Changes:")
         lines.extend(f"  - {change}" for change in result["changes"])
@@ -177,8 +307,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
     if getattr(args, "json_out", False):
         sys.stdout.write(json.dumps(result, indent=2, sort_keys=True) + "\n")
+    elif args.command == "statusline":
+        line = result.get("line", "")
+        if line:
+            sys.stdout.write(line + "\n")
     else:
         sys.stdout.write(_render_human(result) + "\n")
+    if args.command == "statusline":
+        return 0
     return 0 if result["ok"] else 1
 
 

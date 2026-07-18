@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from marketing_os.core.results import envelope, finding, next_action
-from marketing_os.core.schema import load_schema, read_config
+from marketing_os.core.schema import load_schema, read_config, repo_mode
 from marketing_os.core.skills import bundled_skills, inspect_runtimes
 from marketing_os.core.validation import validation_findings
 
@@ -67,8 +67,10 @@ def status_repo(root: Path) -> dict[str, Any]:
             context={"ready": False, "missing": ["brand", "voice", "audience", "offer"]},
             runtimes=inspect_runtimes(root),
             installed_skills=list(bundled_skills()),
+            mode=None,
         )
 
+    mode, _ = repo_mode(config)
     findings = validation_findings(root)
     errors = [item for item in findings if item["severity"] == "error"]
     context = context_status(root)
@@ -105,6 +107,7 @@ def status_repo(root: Path) -> dict[str, Any]:
         context=context,
         runtimes=runtimes,
         installed_skills=list(bundled_skills()),
+        mode=mode,
     )
 
 
@@ -139,4 +142,5 @@ def doctor_repo(root: Path) -> dict[str, Any]:
             "context_ready": status.get("context", {}).get("ready", False),
         },
         runtimes=runtimes,
+        mode=status.get("mode"),
     )

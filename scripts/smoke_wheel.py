@@ -32,12 +32,17 @@ def main() -> int:
             for name in archive.namelist()
             if "/assets/skills/" in name and name.endswith("/SKILL.md")
         )
-        if len(skill_files) != 3:
-            raise RuntimeError("The wheel must contain exactly three skills.")
+        if len(skill_files) != 9:
+            raise RuntimeError("The wheel must contain exactly nine skills.")
         if not any(
             name.endswith("/assets/business-template/.gitignore") for name in archive.namelist()
         ):
             raise RuntimeError("The wheel is missing the generated repository ignore contract.")
+        if not any(
+            name.endswith("/assets/mode-overlays/agency/business/clients/clients.md")
+            for name in archive.namelist()
+        ):
+            raise RuntimeError("The wheel is missing the agency mode overlay.")
 
     with tempfile.TemporaryDirectory(prefix="mos-wheel-smoke-") as temp:
         temp_root = Path(temp)
@@ -55,6 +60,8 @@ def main() -> int:
                     str(brain),
                     "--name",
                     "Wheel Smoke",
+                    "--mode",
+                    "agency",
                     "--runtime",
                     "all",
                     "--plan",
@@ -72,6 +79,8 @@ def main() -> int:
                     str(brain),
                     "--name",
                     "Wheel Smoke",
+                    "--mode",
+                    "agency",
                     "--runtime",
                     "all",
                     "--yes",
@@ -83,8 +92,20 @@ def main() -> int:
         doctor = json.loads(run([str(mos), "doctor", str(brain), "--json"]).stdout)
         if not apply["ok"] or not validate["ok"] or not doctor["ok"]:
             raise RuntimeError("The installed wheel did not create a healthy business repository.")
+        if not (brain / "business" / "clients" / "clients.md").is_file():
+            raise RuntimeError("Agency setup did not scaffold the client registry overlay.")
         for runtime_dir in (".claude", ".agents"):
-            for skill in ("mos-setup", "mos-start", "mos-help"):
+            for skill in (
+                "mos-setup",
+                "mos-start",
+                "mos-help",
+                "mos-status",
+                "mos-end",
+                "mos-think",
+                "mos-bet",
+                "mos-update",
+                "mos-onboard",
+            ):
                 if not (brain / runtime_dir / "skills" / skill / "SKILL.md").is_file():
                     raise RuntimeError(f"Missing generated skill: {runtime_dir}/{skill}")
     print("wheel smoke passed")

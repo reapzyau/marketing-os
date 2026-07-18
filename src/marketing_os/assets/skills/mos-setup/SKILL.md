@@ -16,18 +16,34 @@ Run `mos status . --json` first when the current directory may already be a repo
 - If it is a non-empty directory without a marketing-os identity, do not adopt or migrate it.
   Propose a new empty destination.
 
+## Choose the mode first
+
+Setup requires a mode. Before planning, ask the user: are you marketing one brand you run
+in-house, or running an agency that serves clients? Choices:
+
+- **in-house** — one brand you own. Knowledge is global to the brand.
+- **agency** — you serve clients; this creates the agency HQ with a client registry
+  (`business/clients/clients.md`, pointers only). Each client gets its own repo via
+  `mos onboard --mode client --agency "<agency name>" --hq "<agency-hq-path>"`, because the
+  repo is the access boundary.
+- **client** — a brain for one agency client. Pass `--agency "<agency name>"` to record who
+  runs it.
+
+If you run setup without `--mode`, it returns `ok=false` with a `choose-mode` next action —
+relay its question and re-run with the chosen `--mode`.
+
 ## Plan before writing
 
-Preview setup with:
+Preview setup with the chosen mode (add `--agency "<name>"` for client mode):
 
 ```bash
-mos setup "<path>" --name "<business name>" --runtime all --plan --json
+mos setup "<path>" --name "<business name>" --mode <in-house|agency|client> --runtime all --plan --json
 ```
 
 Explain the destination and proposed changes. Ask for approval before applying:
 
 ```bash
-mos setup "<path>" --name "<business name>" --runtime all --yes --json
+mos setup "<path>" --name "<business name>" --mode <in-house|agency|client> --runtime all --yes --json
 ```
 
 ## Establish minimum context
