@@ -85,7 +85,9 @@ def _append_to_registry(
         )
         return changes, findings
     # Read without newline translation so CRLF files survive the round trip.
-    text = registry.read_text(encoding="utf-8", newline="")
+    # (Path.read_text only accepts newline= on 3.13+; open() works on 3.10.)
+    with registry.open(encoding="utf-8", newline="") as handle:
+        text = handle.read()
     if not _has_table(text):
         findings.append(
             finding(
