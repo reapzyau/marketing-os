@@ -4,17 +4,33 @@ from pathlib import Path
 from typing import Any
 
 from marketing_os.core.results import envelope, finding, next_action
-from marketing_os.core.schema import config_text, read_config, template_root
+from marketing_os.core.schema import (
+    MODES,
+    config_text,
+    overlay_root,
+    read_config,
+    slugify,
+    template_root,
+)
 from marketing_os.core.skills import apply_sync, plan_sync, project_manifest
+
+CHOOSE_MODE_REASON = (
+    "Ask the user: are you marketing one brand you run in-house, or running an agency "
+    "that serves clients? Choices: in-house (one brand you own), agency (you serve "
+    "clients; creates the agency HQ with a client registry), client (a brain for one "
+    "agency client). Then re-run setup with --mode <choice> (client mode: add "
+    "--agency <agency name>)."
+)
 
 
 def _render(text: str, name: str) -> str:
     return text.replace("{{BUSINESS_NAME}}", name.strip())
 
 
-def _template_actions(target: Path, name: str) -> list[dict[str, str]]:
+def _tree_actions(root: Path, target: Path) -> list[dict[str, str]]:
     actions: list[dict[str, str]] = []
-    root = template_root()
+    if not root.is_dir():
+        return actions
     for source in sorted(candidate for candidate in root.rglob("*") if candidate.is_file()):
         relative = source.relative_to(root)
         destination = target / relative
@@ -27,14 +43,30 @@ def _template_actions(target: Path, name: str) -> list[dict[str, str]]:
                 "relative": relative.as_posix(),
             }
         )
+    return actions
+
+
+def suggested_repo_name(name: str, mode: str, agency: str | None) -> str:
+    slug = slugify(name)
+    if mode == "client" and agency and agency.strip():
+        return f"{slugify(agency)}-{slug}"
+    return f"{slug}-hq"
+
+
+def _template_actions(
+    target: Path, name: str, mode: str, agency: str | None
+) -> list[dict[str, str]]:
+    actions = _tree_actions(template_root(), target)
+    actions.extend(_tree_actions(overlay_root() / mode, target))
     config = target / ".mos" / "config.yaml"
     if not config.exists():
+        stored_agency = agency if mode == "client" else None
         actions.append(
             {
                 "source": "",
                 "destination": str(config),
                 "relative": ".mos/config.yaml",
-                "content": config_text(name),
+                "content": config_text(name, mode=mode, agency=stored_agency),
             }
         )
     return actions
@@ -53,7 +85,15 @@ def _apply_templates(actions: list[dict[str, str]], name: str) -> None:
         destination.write_text(_render(text, name), encoding="utf-8")
 
 
-def setup_repo(target: Path, name: str, runtime: str, *, apply: bool) -> dict[str, Any]:
+def setup_repo(
+    target: Path,
+    name: str,
+    runtime: str,
+    *,
+    mode: str | None = None,
+    agency: str | None = None,
+    apply: bool,
+) -> dict[str, Any]:
     target = target.expanduser().resolve()
     findings: list[dict[str, str]] = []
     if not name.strip():
@@ -67,19 +107,55 @@ def setup_repo(target: Path, name: str, runtime: str, *, apply: bool) -> dict[st
                 path=str(target),
             )
         )
-    if findings:
+
+    mode_blocked = False
+    if mode is None:
+        mode_blocked = True
+        findings.append(
+            finding(
+                "mode-required",
+                "Setup requires --mode; choose in-house, agency, or client.",
+            )
+        )
+    elif mode not in MODES:
+        mode_blocked = True
+        findings.append(
+            finding("invalid-mode", f"Mode {mode!r} is not one of in-house, agency, client.")
+        )
+    elif mode == "client" and not (agency and agency.strip()):
+        mode_blocked = True
+        findings.append(
+            finding("agency-required", "Client mode requires --agency <agency name>.")
+        )
+    elif mode != "client" and agency and agency.strip():
+        findings.append(
+            finding(
+                "agency-ignored",
+                f"--agency is only recorded in client mode; ignored for {mode}.",
+                severity="warning",
+            )
+        )
+
+    if any(item["severity"] == "error" for item in findings):
+        if mode_blocked:
+            action = next_action("choose-mode", CHOOSE_MODE_REASON)
+        else:
+            action = next_action(
+                "choose-empty-destination", "Choose an empty folder for the new business brain."
+            )
         return envelope(
             "setup",
             target,
             ok=False,
             findings=findings,
-            action=next_action(
-                "choose-empty-destination", "Choose an empty folder for the new business brain."
-            ),
+            action=action,
             applied=False,
+            planned=not apply,
         )
 
-    file_actions = _template_actions(target, name)
+    assert mode is not None  # narrowed by the guards above
+    repo_name = suggested_repo_name(name, mode, agency)
+    file_actions = _template_actions(target, name, mode, agency)
     skill_actions, skill_findings = plan_sync(
         target, runtime, manifest_path=project_manifest(target)
     )
@@ -89,12 +165,13 @@ def setup_repo(target: Path, name: str, runtime: str, *, apply: bool) -> dict[st
         f"{item['action']} {Path(item['destination']).relative_to(target).as_posix()}"
         for item in skill_actions
     )
-    if apply and not findings:
+    errors = [item for item in findings if item["severity"] == "error"]
+    if apply and not errors:
         target.mkdir(parents=True, exist_ok=True)
         _apply_templates(file_actions, name)
         apply_sync(skill_actions, project_manifest(target))
 
-    ok = not findings
+    ok = not errors
     action = next_action(
         "apply-setup" if not apply and changes else "complete-context",
         "Apply the reviewed setup plan."
@@ -112,4 +189,6 @@ def setup_repo(target: Path, name: str, runtime: str, *, apply: bool) -> dict[st
         action=action,
         applied=apply and ok,
         planned=not apply,
+        mode=mode,
+        suggested_repo_name=repo_name,
     )

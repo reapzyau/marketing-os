@@ -6,7 +6,7 @@ from marketing_os.core.skills import bundled_skills, inspect_runtimes
 
 def test_fresh_repo_exposes_all_skills_to_both_adapters(tmp_path: Path) -> None:
     root = tmp_path / "brain"
-    setup_repo(root, "Runtime Smoke", "all", apply=True)
+    setup_repo(root, "Runtime Smoke", "all", mode="in-house", apply=True)
     runtimes = inspect_runtimes(root)
     for runtime in ("claude", "codex"):
         assert runtimes[runtime]["ready"] is True

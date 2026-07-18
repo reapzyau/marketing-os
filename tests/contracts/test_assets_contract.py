@@ -6,8 +6,18 @@ from marketing_os.core.setup import setup_repo
 from marketing_os.core.skills import bundled_skills
 
 
-def test_package_has_one_three_skill_catalog() -> None:
-    assert bundled_skills() == ("mos-setup", "mos-start", "mos-help")
+def test_package_has_canonical_skill_catalog() -> None:
+    assert bundled_skills() == (
+        "mos-setup",
+        "mos-start",
+        "mos-help",
+        "mos-status",
+        "mos-end",
+        "mos-think",
+        "mos-bet",
+        "mos-update",
+        "mos-onboard",
+    )
     assert not Path(".claude/skills").exists()
     assert not Path(".agents/skills").exists()
 
@@ -29,7 +39,7 @@ def test_skills_document_only_shipped_commands() -> None:
 
 def test_setup_matches_golden_tree(tmp_path: Path) -> None:
     root = tmp_path / "brain"
-    setup_repo(root, "Golden Business", "all", apply=True)
+    setup_repo(root, "Golden Business", "all", mode="in-house", apply=True)
     actual = sorted(path.relative_to(root).as_posix() for path in root.rglob("*") if path.is_file())
     expected = sorted(
         line
@@ -39,3 +49,15 @@ def test_setup_matches_golden_tree(tmp_path: Path) -> None:
         if line
     )
     assert actual == expected
+
+
+def test_agency_overlay_ships_and_scaffolds(tmp_path: Path) -> None:
+    overlay = assets_root() / "mode-overlays" / "agency" / "business" / "clients" / "clients.md"
+    assert overlay.is_file()
+    root = tmp_path / "brain"
+    setup_repo(root, "Golden Agency", "all", mode="agency", apply=True)
+    registry = root / "business" / "clients" / "clients.md"
+    assert registry.is_file()
+    text = registry.read_text(encoding="utf-8")
+    assert "# Client Registry" in text
+    assert "| Client | Repo | Status | Access |" in text

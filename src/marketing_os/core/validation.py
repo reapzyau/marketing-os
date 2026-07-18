@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from marketing_os.core.results import envelope, finding, next_action
-from marketing_os.core.schema import load_schema, read_config
+from marketing_os.core.schema import load_schema, read_config, repo_mode
 
 YEAR = re.compile(r"^\d{4}$")
 MONTH = re.compile(r"^(0[1-9]|1[0-2])$")
@@ -90,6 +90,46 @@ def validation_findings(root: Path) -> list[dict[str, str]]:
                 path=".mos/config.yaml",
             )
         )
+
+    if config is not None:
+        mode, mode_findings = repo_mode(config)
+        findings.extend(mode_findings)
+        registry = root / "business" / "clients" / "clients.md"
+        if any(item["code"] == "invalid-mode" for item in mode_findings):
+            pass  # fail closed: do not judge structure against an unknown mode
+        elif mode == "agency":
+            if not registry.is_file():
+                findings.append(
+                    finding(
+                        "missing-client-registry",
+                        "Agency mode requires a client registry.",
+                        path="business/clients/clients.md",
+                    )
+                )
+        elif (root / "business" / "clients").is_dir():
+            missing_mode = any(item["code"] == "missing-mode" for item in mode_findings)
+            if missing_mode and registry.is_file():
+                # Legacy repo (no explicit mode) that already carries a client
+                # registry is almost certainly an agency HQ; guide the upgrade
+                # instead of asserting it is in-house.
+                findings.append(
+                    finding(
+                        "set-mode-agency",
+                        'This repo has a client registry; add "mode": "agency" to '
+                        ".mos/config.yaml.",
+                        severity="warning",
+                        path=".mos/config.yaml",
+                    )
+                )
+            else:
+                findings.append(
+                    finding(
+                        "unexpected-clients-folder",
+                        f"{mode} mode should not hold a client registry.",
+                        severity="warning",
+                        path="business/clients",
+                    )
+                )
 
     for relative in schema["required_directories"]:
         if not (root / relative).is_dir():
