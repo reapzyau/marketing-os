@@ -106,6 +106,23 @@ table warns `registry-malformed`; and `--hq` in a non-client mode warns
 `hq-ignored`. In `--plan` mode nothing is written to the registry. The envelope adds
 the same `mode` and `suggested_repo_name` facts as setup.
 
+### `mos migrate`
+
+```text
+mos migrate [path] [--plan-file <plan.json>] (--plan | --yes) [--json]
+```
+
+Routes off-schema files into the canonical structure. It is model-free: with no
+`--plan-file` in `--plan` mode it **diagnoses**, listing the stray top-level entries
+as `unrouted` (dotfiles and canonical areas are ignored) — nothing is written. Given
+a `--plan-file` — a `mos.migrate-plan.v1` document with `mkdirs` and `moves` — it
+validates the moves as a set and, under `--yes`, applies them. The plan is atomic:
+if any move is invalid (missing source, a destination that escapes the repo, or a
+destination that already exists) **nothing** is written and the findings name what to
+fix; existing files are never overwritten. The judgement of where each stray file
+belongs lives in the `mos-migrate` skill, not the command. The envelope adds
+`unrouted`, `plan_schema`, `moved`, and `created_dirs` facts.
+
 ### `mos status`
 
 ```text

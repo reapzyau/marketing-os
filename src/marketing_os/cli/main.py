@@ -9,6 +9,7 @@ from typing import Any
 
 from marketing_os import __version__
 from marketing_os.core.ingest import ingest_repo, pending_sources
+from marketing_os.core.migrate import migrate_repo
 from marketing_os.core.onboard import onboard_repo
 from marketing_os.core.query import query_repo
 from marketing_os.core.results import envelope, next_action
@@ -154,6 +155,18 @@ def build_parser() -> argparse.ArgumentParser:
     _add_mutation(onboard)
     _add_output(onboard)
 
+    migrate = commands.add_parser(
+        "migrate", help="Diagnose off-schema files or apply a deterministic routing plan."
+    )
+    migrate.add_argument("path", nargs="?", default=".")
+    migrate.add_argument(
+        "--plan-file",
+        default=None,
+        help="A mos.migrate-plan.v1 routing plan to preview or apply.",
+    )
+    _add_mutation(migrate)
+    _add_output(migrate)
+
     update = commands.add_parser("update", help="Update the marketing-os engine itself.")
     _add_mutation(update)
     _add_output(update)
@@ -258,6 +271,10 @@ def dispatch(args: argparse.Namespace) -> dict[str, Any]:
             agency=args.agency,
             hq=_path(args.hq) if args.hq else None,
             apply=_mutation_mode(args),
+        )
+    if args.command == "migrate":
+        return migrate_repo(
+            _path(args.path), plan_file=args.plan_file, apply=_mutation_mode(args)
         )
     if args.command == "update":
         return update_engine(apply=_mutation_mode(args))
