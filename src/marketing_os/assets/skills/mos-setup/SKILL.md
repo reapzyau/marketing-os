@@ -16,8 +16,11 @@ hold to these rules at every step:
   Each of these comes from the user.
 - **Ask for one thing at a time, then stop and wait** for the user's answer before moving on.
   Do not run ahead with placeholders or guessed values.
-- Use **`AskUserQuestion`** for fixed choices (for example, the mode). Ask in plain language for
-  free-text answers such as the business name or the destination.
+- Gather **every** input through **`AskUserQuestion`** so the user clicks rather than composes
+  prose — the mode, and also the business name and destination. Offer sensible options (a name
+  suggested by the surrounding context or a throwaway test name; a default path or one named
+  after the business) and rely on the built-in custom-answer option for anything open-ended. Only
+  drop to a plain-language question when a step genuinely has no proposable options.
 - **Show every plan and get explicit approval before writing.** Never run a `--yes` command
   until the user has seen the plan and told you to proceed.
 - If a step needs something the user has not given you, your next action is to **ask them** — not
@@ -38,11 +41,13 @@ Report what you detected before doing anything else.
 
 ## 2. Ask for the business name and destination
 
-Ask the user, and wait for each answer:
+Ask both through **`AskUserQuestion`**, and wait for the answers:
 
-- **What is the business called?** Use their exact name — never a placeholder.
-- **Where should the brain live?** Confirm an empty destination path. Offer one only as a
-  proposal for the user to confirm or replace.
+- **What is the business called?** Offer any name suggested by the surrounding context plus a
+  throwaway test name, and let the user type their own. Use their exact name — never a silent
+  placeholder.
+- **Where should the brain live?** Offer a default path and one named after the business (the
+  `<slug>-hq` convention), plus the custom option, and confirm the destination is empty.
 
 Do not continue until you have both.
 
@@ -78,19 +83,24 @@ mos setup "<path>" --name "<business name>" --mode <in-house|agency|client> --ru
 
 ## 5. Establish minimum context — one question at a time
 
-After scaffolding, gather these four inputs **conversationally, asking one at a time and waiting
+After scaffolding, gather these inputs **conversationally, asking one at a time and waiting
 for each answer** — never fill them in yourself:
 
 1. What the business is and wants to be known for.
 2. Who the primary audience is and what they are trying to change.
 3. The primary offer: name, promise, mechanism, price or commercial model, and next step.
 4. How the business should sound, including representative examples and language to avoid.
+5. The strategy: how the business intends to win, the goals worth measuring, and the roadmap of
+   phases ahead. Many businesses cannot state all three crisply yet — draw them out and record a
+   lean first pass the operator can sharpen later, rather than forcing false precision.
 
 For each answer, **propose the exact edit and get approval before saving.** After approval:
 
 - update `business/brand/brand.md` and `business/brand/voice.md`;
 - update `business/audience/primary.md`;
 - create `business/offers/<offer-slug>/offer.md` using a lowercase hyphenated slug;
+- update `business/strategy/strategy.md` (the approach to win), `business/strategy/goals.md`
+  (measurable targets), and `business/strategy/roadmap.md` (the phases ahead);
 - update `CONTEXT.md` with the current focus and desired outcome.
 
 Never collect secrets, credentials, raw customer exports, or private account data into tracked

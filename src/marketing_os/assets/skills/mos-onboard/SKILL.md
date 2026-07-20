@@ -54,9 +54,10 @@ client in the agency's registry. Ask for approval, then re-run with `--yes` in p
 ## Interview
 
 The onboard result includes an `interview` handoff listing the unfilled business files with
-guidance — follow it rather than inventing a script. Gather the same four inputs as
-`mos-setup`: what the business is, who the audience is, the primary offer, and how it should
-sound. Propose exact edits, and write them to the same files only after approval.
+guidance — follow it rather than inventing a script. Gather the same inputs as `mos-setup`: what
+the business is, who the audience is, the primary offer, how it should sound, and the strategy
+(the approach, goals, and roadmap → `business/strategy/{strategy,goals,roadmap}.md`). Propose
+exact edits, and write them to the same files only after approval.
 
 ## Verify
 
