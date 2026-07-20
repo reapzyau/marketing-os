@@ -7,6 +7,16 @@ description: Research a marketing question from repository truth, decide with th
 
 Turn uncertainty into evidence, a decision, and — only when useful — durable business memory.
 
+## How to run this skill (interaction contract)
+
+Thinking ends in durable business memory, so run it as an interactive flow, not a batch job:
+
+- Ground in evidence first, then bring the operator a clear recommendation — but the decision is
+  theirs. Ask them to accept, revise, or defer, and wait, before you write anything.
+- Separate sourced fact from your own inference so they can judge it honestly.
+- Codify only after explicit approval; publishing, spend, and customer contact stay
+  operator-gated even once the decision is recorded.
+
 ## Ground
 
 Start from the grounded handoff:

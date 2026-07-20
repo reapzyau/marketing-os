@@ -7,6 +7,14 @@ description: Explain marketing-os setup, architecture, routing, status, validati
 
 Answer in plain business language using current facts rather than remembered command syntax.
 
+## How to run this skill (interactive)
+
+Help is a dialogue, not a lecture:
+
+- If the question is broad or ambiguous, ask what the user is trying to do before explaining — a
+  targeted answer beats a tour.
+- After answering, offer the natural next step and ask whether they want to take it.
+
 ## Sources of truth
 
 - Use `mos --help` and `mos <command> --help` for command syntax.

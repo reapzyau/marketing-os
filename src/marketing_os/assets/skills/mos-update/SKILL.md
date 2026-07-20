@@ -9,6 +9,18 @@ Update the installed marketing-os engine and refresh its generated skill copies.
 the mechanics; do not ask the user whether they installed from source or pipx, and do not reach
 for raw package commands as the first path.
 
+## How to run this skill (interaction contract)
+
+Updating changes the installed engine and regenerates skill copies, so run it interactively —
+though "interactive" here means confirming the *actions*, not quizzing the user on install
+mechanics (the CLI already owns those):
+
+- Preview every stage with `--plan` and explain what it will change before applying it.
+- Get explicit approval before each `--yes`; if a stage reports not-ok, show the finding and
+  stop rather than pressing on as if it worked.
+- Tell the user when a session restart is needed for new skills to load, so nothing silently
+  no-ops.
+
 ## Preview
 
 Run:

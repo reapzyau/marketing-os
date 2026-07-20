@@ -14,6 +14,17 @@ diagnosis, decide where each stray file belongs, write the plan, and apply it.
 Deciding that `old-posts/launch.md` belongs at `content/2026/07/2026-07-15-launch/` is judgement —
 exactly what the CLI leaves to you. The command owns the safe file moves; you own the mapping.
 
+## How to run this skill (interaction contract)
+
+Migrating moves the operator's real files, so treat this as an interactive flow, not a batch job:
+
+- Never guess where a stray file belongs — that mapping is the operator's call. Show them the
+  diagnosis, propose destinations, and confirm the plan with them before applying it.
+- Ask one thing at a time and wait; use `AskUserQuestion` when a file could plausibly go to more
+  than one place.
+- Preview with `--plan` and get explicit approval before the `--yes` apply. Never move files the
+  user has not signed off on.
+
 ## 1. Initialize, then diagnose
 
 If the folder is not yet a repo, scaffold it first with the setup skill (`mos setup`). Then

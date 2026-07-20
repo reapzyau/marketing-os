@@ -8,6 +8,15 @@ description: Close a marketing-os session by recording the current focus, loggin
 Close the session from deterministic facts, capture durable memory, and offer a reviewed save.
 There is no checkpoint command; git is the mechanism and this skill narrates it.
 
+## How to run this skill (interaction contract)
+
+Ending a session records memory and can commit to git, so keep it interactive:
+
+- Propose the exact `CONTEXT.md` and log edits and wait for approval before writing them.
+- Show the commit message and the full file list, and commit only after the operator approves.
+- Never push, force, or rewrite history unless the operator explicitly asks, and never commit
+  secrets or raw customer data.
+
 ## Inspect
 
 Run:

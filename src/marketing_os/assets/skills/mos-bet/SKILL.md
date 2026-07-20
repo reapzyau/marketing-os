@@ -8,6 +8,16 @@ description: Open, update, close, list, or narrate a falsifiable business bet st
 Treat a bet as a falsifiable operating choice with a deadline and a verdict, not a task or an
 offer description. A bet is a dated decision artifact; there is no bet command.
 
+## How to run this skill (interaction contract)
+
+A bet is a durable, dated commitment, so treat this as an interactive flow:
+
+- Confirm the hypothesis, stake, deadline, and success/failure signals with the operator before
+  opening a bet — these are their commitments, not yours to invent.
+- Propose the exact edit and wait for approval before any write, whether opening, updating, or
+  closing a bet.
+- When updating, append dated evidence; never rewrite the original hypothesis on their behalf.
+
 ## Inspect
 
 Run:

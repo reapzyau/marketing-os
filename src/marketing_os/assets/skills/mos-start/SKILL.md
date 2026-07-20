@@ -7,6 +7,15 @@ description: Start or resume work from deterministic repository facts and recomm
 
 Orient from repository truth before giving advice.
 
+## How to run this skill (interactive)
+
+This skill is read-only, but keep it a conversation, not a monologue:
+
+- If the user's intent is unclear, ask before you dig in — don't assume what they want.
+- After orienting, offer the one recommended next action and ask whether to take it, rather than
+  acting unprompted.
+- Anything that would write or reach outside the repo waits for the user's explicit go-ahead.
+
 ## Inspect
 
 Run:

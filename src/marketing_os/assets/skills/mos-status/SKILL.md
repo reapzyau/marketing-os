@@ -7,6 +7,14 @@ description: Give a deterministic marketing-os briefing of what is healthy, what
 
 Translate deterministic repository facts into one owner-facing briefing. This skill is read-only.
 
+## How to run this skill (interactive)
+
+Read-only, but a briefing is a conversation opener, not a data dump:
+
+- If it is unclear what the user is trying to decide, ask before reporting.
+- Lead with the single most useful next action and ask whether they want to take it (or the route
+  that serves it) — don't list everything and stop.
+
 ## Inspect
 
 Run:

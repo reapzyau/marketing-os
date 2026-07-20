@@ -9,6 +9,19 @@ Create a new brain — the operator's own business or an agency client — in on
 first commit, then interview for real context. Use `mos-setup` instead to complete or repair
 the repository you are already in; onboarding always targets a new folder.
 
+## How to run this skill (interaction contract)
+
+This skill is an interactive, guided flow — not a batch job. It creates a real repository with
+git history, so a wrong guess costs more than a question. At every step:
+
+- Never invent or assume the business name, mode, agency, or destination — each comes from the
+  user. Ask for one thing at a time and wait for the answer before moving on.
+- Use `AskUserQuestion` for fixed choices (the mode); ask in plain language for free-text such
+  as the business name or the destination.
+- Show the plan and get explicit approval before applying — never run `--yes` until the user has
+  seen the plan and told you to proceed.
+- If a step needs something the user has not given you, ask them; do not proceed on a guess.
+
 ## Ask
 
 Establish two facts before touching disk:
