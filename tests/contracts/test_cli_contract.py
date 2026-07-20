@@ -99,6 +99,7 @@ def test_help_lists_all_commands(capsys) -> None:
         "query",
         "think",
         "onboard",
+        "migrate",
         "update",
         "statusline",
     ):
