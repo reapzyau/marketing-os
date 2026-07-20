@@ -29,7 +29,7 @@ REQUIRED_KEYS = {"schema", "command", "ok", "repo", "changes", "findings", "next
 Beyond the required seven, each command adds its own factual keys (for example
 `repo_state`, `context`, `runtimes`, and `installed_skills` on `status`; `checks`
 on `doctor`; `summary` on `validate`; `applied`, `planned`, and `runtime` on the
-mutating commands). `setup` and `onboard` add two mode facts on success:
+mutating commands). `onboard` adds two mode facts on success:
 
 - `mode` — the chosen repository mode (`in-house`, `agency`, or `client`). It also
   appears on `status`, `doctor`, and `statusline`, where it is `null` for a legacy
@@ -76,23 +76,23 @@ When nothing is required, it defaults to
 
 ## Example
 
-A planned `mos setup . --name "Acme Co" --mode in-house` on a fresh path:
+A planned `mos onboard . --name "Acme Co" --mode in-house` on a fresh path:
 
 ```json
 {
-  "schema": "mos.setup.v1",
-  "command": "setup",
+  "schema": "mos.onboard.v1",
+  "command": "onboard",
   "ok": true,
   "repo": "/home/user/acme",
   "changes": [
     "create BRAIN.md",
     "create .mos/config.yaml",
-    "create .claude/skills/mos-setup"
+    "create .claude/skills/mos-onboard"
   ],
   "findings": [],
   "next_action": {
-    "id": "apply-setup",
-    "reason": "Apply the reviewed setup plan."
+    "id": "apply-onboard",
+    "reason": "Apply the reviewed onboard plan."
   },
   "applied": false,
   "planned": true,
@@ -103,15 +103,15 @@ A planned `mos setup . --name "Acme Co" --mode in-house` on a fresh path:
 
 ## The `choose-mode` refusal
 
-`--mode` is required. Running `mos setup` (or `mos onboard`) without it is a
-documented contract case: the command writes nothing, returns `ok: false` with a
-`mode-required` finding, and points at the `choose-mode` next action whose `reason`
-is the self-contained question to relay to the user.
+`--mode` is required. Running `mos onboard` without it is a documented contract
+case: the command writes nothing, returns `ok: false` with a `mode-required`
+finding, and points at the `choose-mode` next action whose `reason` is the
+self-contained question to relay to the user.
 
 ```json
 {
-  "schema": "mos.setup.v1",
-  "command": "setup",
+  "schema": "mos.onboard.v1",
+  "command": "onboard",
   "ok": false,
   "repo": "/home/user/acme",
   "changes": [],
@@ -119,13 +119,13 @@ is the self-contained question to relay to the user.
     {
       "code": "mode-required",
       "severity": "error",
-      "message": "Setup requires --mode; choose in-house, agency, or client.",
+      "message": "Onboard requires --mode; choose in-house, agency, or client.",
       "path": ""
     }
   ],
   "next_action": {
     "id": "choose-mode",
-    "reason": "Ask the user: are you marketing one brand you run in-house, or running an agency that serves clients? Choices: in-house (one brand you own), agency (you serve clients; creates the agency HQ with a client registry), client (a brain for one agency client). Then re-run setup with --mode <choice> (client mode: add --agency <agency name>)."
+    "reason": "Ask the user: are you marketing one brand you run in-house, or running an agency that serves clients? Choices: in-house (one brand you own), agency (you serve clients; creates the agency HQ with a client registry), client (a brain for one agency client). Then re-run onboard with --mode <choice> (client mode: add --agency <agency name>)."
   },
   "applied": false,
   "planned": false

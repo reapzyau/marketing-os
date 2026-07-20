@@ -10,24 +10,33 @@ from marketing_os.core.results import envelope, next_action
 REQUIRED_KEYS = {"schema", "command", "ok", "repo", "changes", "findings", "next_action"}
 
 
-def _setup(target: Path, *extra: str) -> None:
+def _onboard(target: Path, *extra: str) -> None:
     main(
-        ["setup", str(target), "--name", "Example Business", "--mode", "in-house", *extra, "--json"]
+        [
+            "onboard",
+            str(target),
+            "--name",
+            "Example Business",
+            "--mode",
+            "in-house",
+            *extra,
+            "--json",
+        ]
     )
 
 
 def _make_repo(tmp_path: Path, capsys) -> Path:
     target = tmp_path / "brain"
-    _setup(target, "--yes")
+    _onboard(target, "--yes")
     capsys.readouterr()
     return target
 
 
-def test_setup_json_envelope_and_plan(tmp_path: Path, capsys) -> None:
+def test_onboard_json_envelope_and_plan(tmp_path: Path, capsys) -> None:
     target = tmp_path / "brain"
     code = main(
         [
-            "setup",
+            "onboard",
             str(target),
             "--name",
             "Example Business",
@@ -42,14 +51,14 @@ def test_setup_json_envelope_and_plan(tmp_path: Path, capsys) -> None:
     payload = json.loads(capsys.readouterr().out)
     assert code == 0
     assert payload.keys() >= REQUIRED_KEYS
-    assert payload["schema"] == "mos.setup.v1"
+    assert payload["schema"] == "mos.onboard.v1"
     assert payload["mode"] == "in-house"
     assert not target.exists()
 
 
-def test_setup_without_mode_returns_choose_mode(tmp_path: Path, capsys) -> None:
+def test_onboard_without_mode_returns_choose_mode(tmp_path: Path, capsys) -> None:
     target = tmp_path / "brain"
-    code = main(["setup", str(target), "--name", "Example Business", "--yes", "--json"])
+    code = main(["onboard", str(target), "--name", "Example Business", "--yes", "--json"])
     payload = json.loads(capsys.readouterr().out)
     assert code == 1
     assert payload["ok"] is False
@@ -63,7 +72,16 @@ def test_failure_is_json_without_human_output(tmp_path: Path, capsys) -> None:
     target.mkdir()
     (target / "notes.txt").write_text("existing", encoding="utf-8")
     code = main(
-        ["setup", str(target), "--name", "Example Business", "--runtime", "all", "--yes", "--json"]
+        [
+            "onboard",
+            str(target),
+            "--name",
+            "Example Business",
+            "--runtime",
+            "all",
+            "--yes",
+            "--json",
+        ]
     )
     output = capsys.readouterr().out
     payload = json.loads(output)
@@ -74,7 +92,7 @@ def test_failure_is_json_without_human_output(tmp_path: Path, capsys) -> None:
 
 def test_read_commands_share_envelope(tmp_path: Path, capsys) -> None:
     target = tmp_path / "brain"
-    _setup(target, "--yes")
+    _onboard(target, "--yes")
     capsys.readouterr()
     for command in ("status", "validate", "doctor"):
         code = main([command, str(target), "--json"])
@@ -90,7 +108,6 @@ def test_help_lists_all_commands(capsys) -> None:
     output = capsys.readouterr().out
     for command in (
         "install",
-        "setup",
         "status",
         "validate",
         "doctor",
@@ -216,7 +233,7 @@ def test_onboard_envelope_and_mutation_enforcement(tmp_path: Path, capsys) -> No
 
 def test_help_lists_mode_flag(capsys) -> None:
     with pytest.raises(SystemExit):
-        main(["setup", "--help"])
+        main(["onboard", "--help"])
     output = capsys.readouterr().out
     assert "--mode" in output
     assert "--agency" in output

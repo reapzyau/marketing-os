@@ -32,8 +32,8 @@ def main() -> int:
             for name in archive.namelist()
             if "/assets/skills/" in name and name.endswith("/SKILL.md")
         )
-        if len(skill_files) != 10:
-            raise RuntimeError("The wheel must contain exactly ten skills.")
+        if len(skill_files) != 9:
+            raise RuntimeError("The wheel must contain exactly nine skills.")
         if not any(
             name.endswith("/assets/business-template/.gitignore") for name in archive.namelist()
         ):
@@ -56,7 +56,7 @@ def main() -> int:
             run(
                 [
                     str(mos),
-                    "setup",
+                    "onboard",
                     str(brain),
                     "--name",
                     "Wheel Smoke",
@@ -75,7 +75,7 @@ def main() -> int:
             run(
                 [
                     str(mos),
-                    "setup",
+                    "onboard",
                     str(brain),
                     "--name",
                     "Wheel Smoke",
@@ -96,7 +96,6 @@ def main() -> int:
             raise RuntimeError("Agency setup did not scaffold the client registry overlay.")
         for runtime_dir in (".claude", ".agents"):
             for skill in (
-                "mos-setup",
                 "mos-start",
                 "mos-help",
                 "mos-status",

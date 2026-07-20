@@ -8,7 +8,6 @@ from marketing_os.core.skills import bundled_skills
 
 def test_package_has_canonical_skill_catalog() -> None:
     assert bundled_skills() == (
-        "mos-setup",
         "mos-start",
         "mos-help",
         "mos-status",
@@ -34,7 +33,7 @@ def test_schema_is_machine_readable_and_versioned() -> None:
 def test_skills_document_only_shipped_commands() -> None:
     skills = assets_root() / "skills"
     text = "\n".join(path.read_text(encoding="utf-8") for path in skills.rglob("SKILL.md"))
-    for command in ("mos setup", "mos status", "mos validate", "mos doctor", "mos skills sync"):
+    for command in ("mos onboard", "mos status", "mos validate", "mos doctor", "mos skills sync"):
         assert command in text
 
 

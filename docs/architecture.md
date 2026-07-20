@@ -2,7 +2,7 @@
 
 marketing-os is two repositories with different jobs. This one, the **engine repository**,
 holds the `mos` CLI, the packaged skills, and the templates. It never contains a business.
-Running `mos setup` (or the bundled setup skill) produces a **business repository**: a
+Running `mos onboard` (or the bundled onboard skill) produces a **business repository**: a
 generated, self-contained marketing brain that holds one business's truth and its execution
 artifacts. The engine is model-free and deterministic; judgment, interviews, synthesis, and
 writing happen in the business repository, driven by agents. See

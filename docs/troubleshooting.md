@@ -15,7 +15,7 @@ mos doctor . --json
 
 `config` could not be read, so the folder is not a marketing-os business repository. This is
 also what you see outside a repository or when `.mos/config.yaml` is missing or unparseable.
-Run the setup skill (or `mos setup`) to scaffold a new brain, or move into the correct
+Run the onboard skill (or `mos onboard`) to scaffold a new brain, or move into the correct
 folder. `mos status` walks up from the given path to find `.mos/config.yaml`, so run it from
 inside the repository.
 
@@ -63,11 +63,11 @@ priority.
 ## Common validation findings
 
 - `missing-or-invalid-config` — `.mos/config.yaml` is absent or does not parse as JSON.
-  Re-run setup to rewrite the marker.
+  Re-run onboard to rewrite the marker.
 - `unsupported-schema` — the config's `schema` or `schema_version` does not match the
   packaged schema. Confirm you are on a compatible marketing-os version.
 - `missing-directory` / `missing-file` — a required path from `schema.json` is absent. Re-run
-  setup to recreate scaffolded files without touching existing ones.
+  onboard to recreate scaffolded files without touching existing ones.
 - `unknown-top-level` — a warning, not an error: a top-level path sits outside the canonical
   architecture. Move the work under an allowed tree (`business/`, `knowledge/`, `content/`,
   `campaigns/`, `reporting/`, `outputs/`, or `archive/`) or remove it.

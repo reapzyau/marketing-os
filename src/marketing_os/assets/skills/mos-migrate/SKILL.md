@@ -27,7 +27,7 @@ Migrating moves the operator's real files, so treat this as an interactive flow,
 
 ## 1. Initialize, then diagnose
 
-If the folder is not yet a repo, scaffold it first with the setup skill (`mos setup`). Then
+If the folder is not yet a repo, scaffold it first with the onboard skill (`mos onboard`). Then
 diagnose:
 
 ```bash

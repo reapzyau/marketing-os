@@ -39,7 +39,7 @@ Do not load `archive/` for ordinary grounding.
 
 ## Route
 
-- If this is not a marketing-os repository, use `mos-setup`.
+- If this is not a marketing-os repository, use `mos-onboard`.
 - If structure or runtime wiring is unhealthy, propose the exact repair plan before applying it.
 - If core context is incomplete, recommend the first missing context item.
 - Otherwise follow the user's stated intent directly.

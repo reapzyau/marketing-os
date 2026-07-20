@@ -15,7 +15,7 @@ from marketing_os.core.skills import (
 def test_both_runtimes_receive_identical_skills(tmp_path: Path) -> None:
     root = tmp_path / "brain"
     setup_repo(root, "Example Business", "all", mode="in-house", apply=True)
-    for name in ("mos-setup", "mos-start", "mos-help"):
+    for name in ("mos-onboard", "mos-start", "mos-help"):
         expected = tree_hash(skills_root() / name)
         assert tree_hash(root / ".claude/skills" / name) == expected
         assert tree_hash(root / ".agents/skills" / name) == expected
@@ -33,7 +33,7 @@ def test_clone_recovery_regenerates_ignored_runtime_files(tmp_path: Path) -> Non
     )
     actions, findings = plan_sync(clone, "all", manifest_path=project_manifest(clone))
     assert findings == []
-    assert len(actions) == 20
+    assert len(actions) == 18
     apply_sync(actions, project_manifest(clone))
     assert all(item["ready"] for item in inspect_runtimes(clone).values())
 

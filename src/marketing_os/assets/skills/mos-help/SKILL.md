@@ -33,7 +33,7 @@ Help is a dialogue, not a lecture:
 
 ## Common routes
 
-- New or incomplete repository: `mos-setup`.
+- New or incomplete repository: `mos-onboard`.
 - Daily orientation: `mos-start`.
 - Structural errors: `mos validate . --json`.
 - Runtime discovery errors: preview and then apply `mos skills sync`.

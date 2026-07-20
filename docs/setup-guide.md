@@ -22,7 +22,7 @@ You should see a line like `mos 0.1.0`.
 
 ## 2. Install the bootstrap skills globally
 
-`mos install` copies the bundled skills — including `mos-setup`, `mos-start`, and
+`mos install` copies the bundled skills — including `mos-onboard`, `mos-start`, and
 `mos-help` — into your home directory so every runtime can find them. It targets `~/.claude/skills`
 for Claude Code and `~/.agents/skills` for Codex, and records what it installed in
 `~/.marketing-os/runtime-manifest.json`.
@@ -54,15 +54,15 @@ mkdir my-business
 cd my-business
 ```
 
-Setup refuses to adopt a non-empty folder that is not already a marketing-os repository,
+Onboard refuses to adopt a non-empty folder that is not already a marketing-os repository,
 so start clean.
 
-## 4. Open the folder in your agent and run setup
+## 4. Open the folder in your agent and run onboard
 
-Open the folder in Claude Code or Codex, then run the setup skill:
+Open the folder in Claude Code or Codex, then run the onboard skill:
 
-- Claude Code: `/mos-setup`
-- Codex: `$mos-setup`
+- Claude Code: `/mos-onboard`
+- Codex: `$mos-onboard`
 
 Both load the same workflow. Before it scaffolds anything, the skill settles the one
 question that shapes the whole brain: **which mode?**
@@ -73,35 +73,36 @@ question that shapes the whole brain: **which mode?**
 - `client` — the brain for a single agency client. Pass `--agency "<agency name>"` so the
   repo records who runs it.
 
-`--mode` is required. If you leave it off, setup writes nothing and returns a
+`--mode` is required. If you leave it off, onboard writes nothing and returns a
 `choose-mode` next action whose reason is the exact question to put to the user.
 
 The skill runs `mos status . --json` to check the current state, then previews the
 scaffold before writing anything:
 
 ```bash
-mos setup . --name "My Business" --mode in-house --runtime all --plan --json
+mos onboard . --name "My Business" --mode in-house --runtime all --plan --json
 ```
 
 The plan lists the files and skill copies it would create. After you approve, the skill
 applies it:
 
 ```bash
-mos setup . --name "My Business" --mode in-house --runtime all --yes --json
+mos onboard . --name "My Business" --mode in-house --runtime all --yes --json
 ```
 
 This creates the canonical brain: `BRAIN.md`, `CONTEXT.md`, the `business/`, `knowledge/`,
 `content/`, `campaigns/`, `reporting/`, and `outputs/` trees, and the generated runtime
-skill copies under `.claude/skills/` and `.agents/skills/`. See
-[business-repo.md](business-repo.md) for the full structure.
+skill copies under `.claude/skills/` and `.agents/skills/`. It also initializes a git
+repository and records a first commit. See [business-repo.md](business-repo.md) for the
+full structure.
 
 ## 5. Establish minimum context
 
-Scaffolding creates empty rooms; the setup skill then interviews you to fill the four
-required context areas: brand, voice, audience, and the primary offer. It proposes the
-exact edits to `business/brand/`, `business/audience/primary.md`, an
-`business/offers/<offer-slug>/offer.md`, and `CONTEXT.md`, and saves them only after
-you approve. Nothing is invented and no non-placeholder file is overwritten without discussion.
+Scaffolding creates empty rooms; the onboard skill then interviews you to fill the required
+context areas: brand, voice, audience, the primary offer, and strategy
+(`business/strategy/{strategy,goals,roadmap}.md`). It proposes the exact edits and saves
+them only after you approve. Nothing is invented and no non-placeholder file is overwritten
+without discussion.
 
 ## 6. Verify
 
@@ -114,7 +115,7 @@ mos doctor . --json
 
 `mos status` reports a `repo_state`. You are aiming for `ready`. Along the way you may see:
 
-- `absent` - the folder is not a marketing-os repository yet; run setup.
+- `absent` - the folder is not a marketing-os repository yet; run onboard.
 - `invalid` - a structural error to repair before doing business work.
 - `needs-runtime-sync` - the runtime skill copies are missing or stale; run `mos skills sync`.
 - `needs-context` - structure and wiring are fine but a required context area is still empty.

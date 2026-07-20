@@ -43,4 +43,4 @@ Read available capabilities from the `installed_skills` status field. Never rout
 that is not installed. When the repository is unhealthy, name the exact repair route
 (`mos validate . --json`, `mos doctor . --json`, or `mos skills sync`) rather than guessing.
 
-If this is not a marketing-os repository, say so plainly and route to `mos-setup`.
+If this is not a marketing-os repository, say so plainly and route to `mos-onboard`.

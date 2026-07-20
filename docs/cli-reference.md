@@ -18,7 +18,7 @@ See [json-output-contract.md](json-output-contract.md) for the envelope shape an
 
 ## Mutation gating
 
-The mutating commands (`install`, `setup`, `onboard`, `skills sync`) require **exactly one** of:
+The mutating commands (`install`, `onboard`, `skills sync`) require **exactly one** of:
 
 - `--plan` — preview the changes without writing anything.
 - `--yes` — apply the reviewed changes.
@@ -51,16 +51,18 @@ copies are tracked in the global manifest at
 `~/.marketing-os/runtime-manifest.json`. Run this once per machine before opening
 any business folder.
 
-### `mos setup`
+### `mos onboard`
 
 ```text
-mos setup [path] --name "<business name>" --mode in-house|agency|client [--agency "<name>"] \
-    [--runtime claude|codex|all] (--plan | --yes) [--json]
+mos onboard [path] --name "<business name>" --mode in-house|agency|client [--agency "<name>"] \
+    [--hq <path>] [--runtime claude|codex|all] (--plan | --yes) [--json]
 ```
 
-Plans or creates one canonical business brain at `path` (default: current
-directory). `--name` is required. `--mode` is also required and decides how the
-brain is shaped:
+The single command to create **or** complete a business brain. Onboard works on a
+new empty folder (scaffold + `git init` + first commit + interview) and on an
+existing brain (complete or repair in place; `git init` only when the folder is not
+already a repository). `--name` is required. `--mode` is also required and decides
+how the brain is shaped:
 
 - `in-house` — one brand you run yourself; knowledge is global to the brand.
 - `agency` — you serve clients; the HQ repo also scaffolds
@@ -73,27 +75,15 @@ Omitting `--mode` returns `ok: false` with a `mode-required` finding and a
 `choose-mode` next action (nothing is written); the action's `reason` is the
 verbatim question to put to the user. An unrecognized value returns `invalid-mode`.
 
-Setup writes the template tree, the agency overlay when relevant, the
+Onboard writes the template tree, the agency overlay when relevant, the
 `.mos/config.yaml` identity file (carrying `mode`, plus `agency` in client mode),
-and the project-local runtime skill copies in a single operation. It refuses a
-non-empty destination that is not already a marketing-os repository, and it never
-overwrites an existing business file. On success the envelope adds two facts:
-`mode` and `suggested_repo_name` (`{slug}-hq` for in-house/agency,
-`{agency-slug}-{slug}` for client).
-
-### `mos onboard`
-
-```text
-mos onboard [path] --name "<business name>" --mode in-house|agency|client [--agency "<name>"] \
-    [--hq <path>] [--runtime claude|codex|all] (--plan | --yes) [--json]
-```
-
-Scaffolds a brain (delegating to the same logic as `mos setup`, so `--mode` and
-`--agency` behave identically) and then hands off the interview: the envelope
-carries an `interview` block listing the still-unfilled business files and the
-guidance to fill them. On apply it also initializes a git repository and records a
-first commit; when git is unavailable the step is skipped with a `git-unavailable`
-warning.
+and the project-local runtime skill copies. It refuses a non-empty destination that
+is not already a marketing-os repository, and it never overwrites an existing
+business file. It then runs the context interview — brand, voice, audience, offer,
+and strategy (`business/strategy/{strategy,goals,roadmap}.md`) — and carries an
+`interview` block in the envelope listing still-unfilled business files. On apply it
+also initializes a git repository and records a first commit; when git is unavailable
+the step is skipped with a `git-unavailable` warning.
 
 `--hq <path>` applies only in client mode. It points at the agency HQ repo and, on
 apply, appends a registry row to `<hq>/business/clients/clients.md`, inserted
@@ -104,7 +94,11 @@ case-insensitively) are skipped with `client-already-registered`; an HQ path tha
 not an agency repo warns `no-client-registry`; a registry file with no markdown
 table warns `registry-malformed`; and `--hq` in a non-client mode warns
 `hq-ignored`. In `--plan` mode nothing is written to the registry. The envelope adds
-the same `mode` and `suggested_repo_name` facts as setup.
+`mode` and `suggested_repo_name` facts on success (`{slug}-hq` for in-house/agency,
+`{agency-slug}-{slug}` for client).
+
+After onboard, push to GitHub with the manual handoff:
+`gh repo create <owner>/<repo> --private --source . --push`
 
 ### `mos migrate`
 
@@ -175,7 +169,7 @@ by hand. Project sync state lives in `.mos/local/runtime-manifest.json`.
 
 | State | Meaning | Suggested action |
 |-------|---------|------------------|
-| `absent` | No `.mos/config.yaml`; this is not a marketing-os repository. | Run `mos setup`. |
+| `absent` | No `.mos/config.yaml`; this is not a marketing-os repository. | Run `mos onboard`. |
 | `invalid` | Structural `error` findings (missing config, directories, files, or malformed dated folders). | Repair structure, then re-check. |
 | `needs-runtime-sync` | Structure is sound but Claude Code or Codex skill copies are missing or stale. | Run `mos skills sync`. |
 | `needs-context` | Structure and wiring are sound but required context (brand, voice, audience, offer) is incomplete. | Complete the first missing context file. |
@@ -191,9 +185,9 @@ states are `ok` because the structure itself is valid.
 mos install --runtime all --plan
 mos install --runtime all --yes
 
-# Scaffold a new brain, review then apply
-mos setup ./acme --name "Acme Co" --mode in-house --plan
-mos setup ./acme --name "Acme Co" --mode in-house --yes
+# Create a new brain (or complete an existing one), review then apply
+mos onboard ./acme --name "Acme Co" --mode in-house --plan
+mos onboard ./acme --name "Acme Co" --mode in-house --yes
 
 # Onboard an agency client and register it in the agency HQ
 mos onboard ./acme-widgets --name "Widgets Inc" --mode client \

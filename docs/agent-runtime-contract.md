@@ -11,7 +11,7 @@ The only authored copy of every skill lives at
 `src/marketing_os/assets/skills/`. Its `manifest.json` lists the bundled skills:
 
 ```json
-{ "schema": "mos.skills.v1", "skills": ["mos-setup", "mos-start", "..."] }
+{ "schema": "mos.skills.v1", "skills": ["mos-onboard", "mos-start", "..."] }
 ```
 
 The manifest is the authoritative list of bundled skills; the sync machinery
@@ -77,7 +77,7 @@ recognized copy from a foreign one. Two manifests exist, chosen by command:
 | Project | `mos skills sync` | `.mos/local/runtime-manifest.json` |
 
 Both use the `mos.runtime-manifest.v1` schema and store, per runtime and skill, the
-hash that was written. `mos setup` performs a project sync as part of scaffolding,
+hash that was written. `mos onboard` performs a project sync as part of scaffolding,
 so a freshly created brain is already wired.
 
 ## Plan and apply
@@ -106,8 +106,8 @@ runtimes are ready.
 
 Once installed, each runtime invokes a skill with its own prefix:
 
-- Claude Code: `/mos-setup`
-- Codex: `$mos-setup`
+- Claude Code: `/mos-onboard`
+- Codex: `$mos-onboard`
 
 The skill body is identical across runtimes — only the invocation syntax differs.
 The same pattern applies to `mos-start` and `mos-help`.

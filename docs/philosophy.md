@@ -19,7 +19,7 @@ folder name matches a dated grammar, whether a skill copy is current. Facts, not
 Interviews, judgment, synthesis, and writing belong to the agent. The CLI will not
 draft an offer, pick a voice, or decide what the current priority is. It scaffolds the
 empty rooms; the agent, working with the user, furnishes them. The bundled
-skills, such as `mos-setup`, `mos-start`, and `mos-help`, are the agent's side of the contract:
+skills, such as `mos-onboard`, `mos-start`, and `mos-help`, are the agent's side of the contract:
 they read deterministic facts first, then apply judgment on top.
 
 Neither side reaches into the other. The CLI never invents business content. The agent
@@ -50,8 +50,8 @@ repository stays clean and the working copy stays current.
 ## Runtime-neutral
 
 Claude Code and Codex are wired from the same packaged skills. There is one skill source
-inside the engine, and each runtime gets a generated copy in its own directory. `/mos-setup`
-in Claude Code and `$mos-setup` in Codex load identical workflows.
+inside the engine, and each runtime gets a generated copy in its own directory. `/mos-onboard`
+in Claude Code and `$mos-onboard` in Codex load identical workflows.
 
 The brain does not belong to a runtime. Any agent that can read files and run a CLI can
 operate it. Supporting a new runtime means adding a target directory for the generated

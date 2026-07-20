@@ -1,6 +1,6 @@
 # Business-Repo Architecture
 
-`mos setup` creates one canonical marketing brain:
+`mos onboard` creates one canonical marketing brain:
 
 ```text
 my-business/
@@ -69,7 +69,7 @@ the tooling rather than a business.
 Setup writes the repository marker to `.mos/config.yaml`. Despite the `.yaml` extension the
 file currently holds JSON, and the tooling reads it back with a JSON parser
 (`json.loads` in `read_config`); YAML is a superset of JSON, so a strict JSON document
-still parses. `mos setup` emits sorted keys, for example an agency HQ:
+still parses. `mos onboard` emits sorted keys, for example an agency HQ:
 
 ```json
 {
@@ -90,7 +90,7 @@ read as absent or invalid.
 
 ## Modes
 
-`mos setup --mode` records how the brain is shaped in an additive `mode` field (the schema
+`mos onboard --mode` records how the brain is shaped in an additive `mode` field (the schema
 version stays 1):
 
 - **in-house** — one brand you run yourself; knowledge is global to the brand.
@@ -105,7 +105,7 @@ Read semantics are centralized in `repo_mode()` (`core/schema.py`): a missing `m
 treated as in-house with a `missing-mode` warning (legacy repos), while an unrecognized
 value raises `invalid-mode` and fails closed. `mos validate` requires the registry in agency
 mode (`missing-client-registry`) and warns if in-house/client repos hold a `business/clients/`
-folder (`unexpected-clients-folder`). `mos setup`/`onboard` without `--mode` return a
+folder (`unexpected-clients-folder`). `mos onboard` without `--mode` returns a
 self-contained `choose-mode` handoff instead of guessing.
 
 ## Dated-folder grammar

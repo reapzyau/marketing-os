@@ -13,7 +13,6 @@ from marketing_os.core.migrate import migrate_repo
 from marketing_os.core.onboard import onboard_repo
 from marketing_os.core.query import query_repo
 from marketing_os.core.results import envelope, next_action
-from marketing_os.core.setup import setup_repo
 from marketing_os.core.skills import (
     apply_sync,
     global_manifest,
@@ -59,25 +58,6 @@ def build_parser() -> argparse.ArgumentParser:
     install.add_argument("--runtime", choices=RUNTIMES, default="all")
     _add_mutation(install)
     _add_output(install)
-
-    setup = commands.add_parser("setup", help="Plan or create a canonical business brain.")
-    setup.add_argument("path", nargs="?", default=".")
-    setup.add_argument("--name", required=True, help="Business display name.")
-    setup.add_argument(
-        "--mode",
-        choices=MODES,
-        default=None,
-        help="Repository mode: in-house (one brand you own), agency (serves clients; "
-        "adds a client registry), or client (one agency client). Required.",
-    )
-    setup.add_argument(
-        "--agency",
-        default=None,
-        help="Agency business name; required for --mode client, ignored otherwise.",
-    )
-    setup.add_argument("--runtime", choices=RUNTIMES, default="all")
-    _add_mutation(setup)
-    _add_output(setup)
 
     status = commands.add_parser(
         "status", help="Inspect structure, context, and runtime readiness."
@@ -132,7 +112,9 @@ def build_parser() -> argparse.ArgumentParser:
     think.add_argument("path", nargs="?", default=".")
     _add_output(think)
 
-    onboard = commands.add_parser("onboard", help="Scaffold a brain and hand off the interview.")
+    onboard = commands.add_parser(
+        "onboard", help="Create or complete a business brain: scaffold, git, and the interview."
+    )
     onboard.add_argument("path", nargs="?", default=".")
     onboard.add_argument("--name", required=True, help="Business display name.")
     onboard.add_argument(
@@ -216,15 +198,6 @@ def dispatch(args: argparse.Namespace) -> dict[str, Any]:
     if args.command == "install":
         return _sync_result(
             Path.home(), args.runtime, apply=_mutation_mode(args), global_install=True
-        )
-    if args.command == "setup":
-        return setup_repo(
-            _path(args.path),
-            args.name,
-            args.runtime,
-            mode=args.mode,
-            agency=args.agency,
-            apply=_mutation_mode(args),
         )
     if args.command == "status":
         return status_repo(_path(args.path))

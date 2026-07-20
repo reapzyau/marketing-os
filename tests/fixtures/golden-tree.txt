@@ -3,7 +3,6 @@
 .agents/skills/mos-help/SKILL.md
 .agents/skills/mos-migrate/SKILL.md
 .agents/skills/mos-onboard/SKILL.md
-.agents/skills/mos-setup/SKILL.md
 .agents/skills/mos-start/SKILL.md
 .agents/skills/mos-status/SKILL.md
 .agents/skills/mos-think/SKILL.md
@@ -13,7 +12,6 @@
 .claude/skills/mos-help/SKILL.md
 .claude/skills/mos-migrate/SKILL.md
 .claude/skills/mos-onboard/SKILL.md
-.claude/skills/mos-setup/SKILL.md
 .claude/skills/mos-start/SKILL.md
 .claude/skills/mos-status/SKILL.md
 .claude/skills/mos-think/SKILL.md
