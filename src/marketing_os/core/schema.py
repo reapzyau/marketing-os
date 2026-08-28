@@ -31,6 +31,19 @@ def load_schema() -> dict[str, Any]:
     return json.loads((assets_root() / "schema.json").read_text(encoding="utf-8"))
 
 
+def is_exempt_name(name: str) -> bool:
+    """Whether a file name is structural and outside the frontmatter contract.
+
+    Exact names (``BRAIN.md``, ``_index.md``, ...) are the agent- and index-facing files;
+    suffixes cover files another tool owns, such as Excalidraw's ``*.excalidraw.md``
+    drawings, whose body is that tool's data rather than a document.
+    """
+    contract = load_schema()["frontmatter_contract"]
+    if name in contract["exempt_names"]:
+        return True
+    return name.endswith(tuple(contract.get("exempt_suffixes", ())))
+
+
 def read_config(root: Path) -> dict[str, Any] | None:
     path = root / ".mos" / "config.yaml"
     if not path.is_file():

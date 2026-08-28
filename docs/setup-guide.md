@@ -18,7 +18,7 @@ Check it is available:
 mos --version
 ```
 
-You should see a line like `mos 0.1.0`.
+You should see a line like `mos 0.2.0`.
 
 ## 2. Install the bootstrap skills globally
 
@@ -127,3 +127,34 @@ repository, run the start skill (`/mos-start` or `$mos-start`) to begin working 
 `CONTEXT.md`.
 
 If anything looks off, [troubleshooting.md](troubleshooting.md) maps each state to a remedy.
+
+## 7. Open it in Obsidian
+
+Every brain is born an Obsidian vault. In Obsidian choose **File → Open vault → Open folder as
+vault** and pick the brain folder. Nothing to configure: the scaffold ships a `.obsidian/`
+with three community plugins already installed and enabled:
+
+- **Iconize** (`obsidian-icon-folder`) - the emoji in front of every folder (💼 business,
+  📚 knowledge, 📣 campaigns, 🎬 content, 📦 outputs, 📊 reporting, 🗄️ archive). The icons
+  live in the plugin's `data.json`, so the folder names on disk stay exactly what the schema and
+  the CLI expect.
+- **Git File Explorer Colors** (`git-file-explorer-colors`) - changed and new files stand out in
+  the file explorer.
+- **Hide Empty Folders** (`hide-empty-folders`) - a folder that holds only `.gitkeep` stays out
+  of the way until the first real file lands in it.
+
+Agent-facing files (`CLAUDE.md`, `AGENTS.md`, `CONTEXT.md`, `CONTRACT.md`, `README.md`,
+anything starting with `_`) are excluded from search and hidden from the explorer by the
+`hide-machinery` snippet; new notes default to `knowledge/sources/`. The theme is left on
+Obsidian's default - pick your own under Settings → Appearance. The vault config and plugins
+are committed with the brain so a fresh clone opens identically; only per-machine UI state
+(`workspace.json`, caches, `.trash/`) is ignored.
+
+**Recommended: Excalidraw.** Drawings are a one-click install rather than bundled (its
+AGPL-3.0 licence does not sit inside an MIT wheel, and it is 8 MB): Settings → Community
+plugins → Browse → search "Excalidraw" → Install → Enable. Save each drawing beside the note
+it illustrates, inside a dated source folder such as
+`knowledge/sources/2026/08/2026-08-28-funnel-map/` (a loose `drawings/` folder, or
+Excalidraw's default `Excalidraw/` folder at the vault root, is off-schema and `mos validate`
+will say so). `*.excalidraw.md` files are exempt from the frontmatter contract, so
+`mos validate --strict` never flags a drawing.

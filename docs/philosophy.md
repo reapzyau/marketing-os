@@ -3,12 +3,18 @@
 marketing-os is built on one split: the CLI owns facts, the agent owns judgment.
 Everything else follows from keeping that line clean.
 
-## The CLI never calls a model
+## The CLI does not call a model, with one named exception
 
-`mos` is deterministic and model-free. It reads and writes the filesystem, validates
-structure against a fixed schema, and wires runtime skill copies. Given the same
-repository it always returns the same answer. Because it never reasons, it can be
-trusted as ground truth: an agent asks `mos status` what is real instead of guessing.
+`mos` is deterministic. It reads and writes the filesystem, validates structure against a
+fixed schema, and wires runtime skill copies. Given the same repository it always returns the
+same answer. Because it never reasons, it can be trusted as ground truth: an agent asks
+`mos status` what is real instead of guessing.
+
+The exception is `mos assist`, which may run an agent runtime the operator already installed
+so the app can interview someone who freezes in front of an empty box. It is one module, it
+fires only on an explicit request, it writes nothing, and it is documented in
+[the architecture](architecture.md). Every other command is model-free, and a claim of
+determinism anywhere else in these docs means exactly that.
 
 This is why the CLI stays small. It does the things a language model is bad at,
 which are the things a program is good at: checking whether a file exists, whether a
@@ -59,8 +65,8 @@ copies, not rewriting the system.
 
 ## Why this holds
 
-Each principle protects the others. A model-free CLI is only trustworthy because it never
-guesses. Grounding only works because the files are the durable source and the CLI keeps
+Each principle protects the others. A CLI that reports rather than guesses is only
+trustworthy because the one place it may ask a model is named, bounded, and writes nothing. Grounding only works because the files are the durable source and the CLI keeps
 them structurally honest. Runtime-neutrality only works because the skills are generated,
 not hand-maintained per runtime. The result is a system where facts are checkable, judgment
 is the agent's job, and the business brain outlives any single session.

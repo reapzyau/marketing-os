@@ -27,8 +27,9 @@ Migrating moves the operator's real files, so treat this as an interactive flow,
 
 ## 1. Initialize, then diagnose
 
-If the folder is not yet a repo, scaffold it first with the onboard skill (`mos onboard`). Then
-diagnose:
+If the folder is not yet a repo, scaffold it first with the onboard skill (`mos onboard`) — or,
+when it already holds a brain in an older layout, adopt it with `mos attach "<path>" --plan`
+then `--yes`, which rewrites only the config and never moves content. Then diagnose:
 
 ```bash
 mos migrate "<path>" --plan --json
@@ -78,3 +79,12 @@ Report `moved`, `created_dirs`, and any remaining `unrouted` entries, plus one n
 - The command never overwrites and never moves outside the repo — trust the findings, fix the plan.
 - Prefer previewing with `--plan --plan-file` before `--yes` on anything you have not routed before.
 - Migrate moves files; it does not rewrite their contents. Update internal links separately.
+
+## Document contract
+
+Migrated files land in the canonical structure but keep whatever frontmatter they arrived
+with, so a migration routinely leaves contract gaps behind. The repository's `CONTRACT.md`
+requires `title`, `type`, `description`, `date`, `status`, plus at least one of `sources`,
+`related`, or `produced_by`; deliverables under `content/`, `campaigns/`, `reporting/`, and
+`outputs/` must carry `sources:`. After applying a migration, run `mos validate . --json` and
+report the contract gaps as the next action — do not leave them silent.

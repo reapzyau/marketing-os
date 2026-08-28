@@ -39,6 +39,21 @@ Propose the exact edits before writing, then after approval:
 Keep both edits short and business-readable. Never invent tomorrow's priority; `mos-start`
 opens the next session.
 
+## Refresh the map
+
+Documents written this session are invisible to navigation until the map catches up. After
+the records above are approved, run:
+
+```bash
+mos index build .
+mos index sync . --plan --json
+```
+
+Review the planned index files, then apply with `mos index sync . --yes`. If
+`mos validate . --json` reports `unlinked-document`, propose links with
+`mos related . --plan --json` and apply the ones that read correctly. Generated `_index.md`
+files carry a do-not-hand-edit marker; the generator leaves any hand-written index alone.
+
 ## Save
 
 Preview the changed files, then propose a commit with a business-language message. After
@@ -52,3 +67,11 @@ git commit -m "<business-readable summary of the session>"
 Show the message and the file list before committing, and commit only after the operator
 approves. Never push, and never force or rewrite history, unless the operator explicitly asks.
 Do not commit secrets, credentials, or raw customer exports.
+
+## Document contract
+
+Every file you write under `business/`, `knowledge/`, `content/`, `campaigns/`, `reporting/`,
+or `outputs/` opens with the frontmatter block defined in the repository's `CONTRACT.md`:
+`title`, `type`, `description`, `date`, `status`, plus at least one of `sources`, `related`,
+or `produced_by`. Deliverables must carry `sources:` — an output with no sources is not
+finished. Emit the block as you write the file; never leave it for a later pass.

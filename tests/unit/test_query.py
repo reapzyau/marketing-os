@@ -101,3 +101,100 @@ def test_score_corpus_empty_terms_returns_nothing(tmp_path: Path) -> None:
     root = tmp_path / "brain"
     _make_repo(root)
     assert score_corpus(root, []) == []
+
+
+def _catalogued(root: Path) -> None:
+    from marketing_os.core.catalog import build_repo
+
+    build_repo(root)
+
+
+def test_query_widens_beyond_business_and_wiki(tmp_path: Path) -> None:
+    root = tmp_path / "brain"
+    _make_repo(root)
+    _write(
+        root / "outputs" / "2026" / "08" / "2026-08-20-launch" / "recap.md",
+        "# Launch recap\n\nThe launch recap covers the launch results.\n",
+    )
+    result = query_repo(root, "launch recap")
+    paths = [item["path"] for item in result["candidates"]]
+    assert "outputs/2026/08/2026-08-20-launch/recap.md" in paths
+
+
+def test_query_ignores_archived_material(tmp_path: Path) -> None:
+    root = tmp_path / "brain"
+    _make_repo(root)
+    _write(root / "archive" / "old-pricing.md", "# Old\n\npricing pricing pricing pricing\n")
+    result = query_repo(root, "pricing")
+    assert all(not item["path"].startswith("archive/") for item in result["candidates"])
+
+
+def test_query_prefers_the_catalog_when_one_exists(tmp_path: Path) -> None:
+    root = tmp_path / "brain"
+    _make_repo(root)
+    assert query_repo(root, "pricing")["source"] == "body-scan"
+    _catalogued(root)
+    result = query_repo(root, "pricing strategy")
+    assert result["source"] == "catalog"
+    assert result["candidates"][0]["path"] == "business/strategy/pricing.md"
+
+
+def test_query_falls_back_when_the_catalog_has_no_answer(tmp_path: Path) -> None:
+    root = tmp_path / "brain"
+    _make_repo(root)
+    # The term appears only deep in the body, so no catalogued field carries it.
+    _write(
+        root / "business" / "brand" / "deep.md",
+        "---\ntitle: Brand notes\ndescription: General notes on the brand.\n---\n\n"
+        "# Brand notes\n\nGeneral notes on the brand.\n\nA buried heliotrope reference.\n",
+    )
+    _catalogued(root)
+    result = query_repo(root, "heliotrope")
+    assert result["source"] == "body-scan"
+    assert [item["path"] for item in result["candidates"]] == ["business/brand/deep.md"]
+
+
+def test_query_returns_the_navigation_route(tmp_path: Path) -> None:
+    root = tmp_path / "brain"
+    _make_repo(root)
+    _write(root / "_index.md", "# Root\n")
+    _write(root / "business" / "_index.md", "# Business\n")
+    result = query_repo(root, "pricing strategy")
+    assert result["route"] == ["_index.md", "business/_index.md"]
+
+
+def test_query_route_is_empty_without_generated_indexes(tmp_path: Path) -> None:
+    root = tmp_path / "brain"
+    _make_repo(root)
+    assert query_repo(root, "pricing")["route"] == []
+
+
+def test_grep_finds_literal_strings(tmp_path: Path) -> None:
+    root = tmp_path / "brain"
+    _make_repo(root)
+    _write(root / "business" / "brand" / "links.md", "# Links\n\nSee https://example.com/a?b=1\n")
+    result = query_repo(root, "https://example.com/a?b=1", literal=True)
+    assert result["mode"] == "grep"
+    assert result["matches"][0]["path"] == "business/brand/links.md"
+    assert result["matches"][0]["line"] == 3
+
+
+def test_grep_reports_no_matches_without_failing(tmp_path: Path) -> None:
+    root = tmp_path / "brain"
+    _make_repo(root)
+    result = query_repo(root, "no-such-literal-string", literal=True)
+    assert result["ok"] is True
+    assert result["matches"] == []
+    assert any(item["code"] == "no-matches" for item in result["findings"])
+
+
+def test_score_catalog_weights_title_above_body_context(tmp_path: Path) -> None:
+    from marketing_os.core.catalog import build_catalog
+    from marketing_os.core.query import score_catalog
+
+    root = tmp_path / "brain"
+    _make_repo(root)
+    scored = score_catalog(build_catalog(root), ["pricing"])
+    ranked = {relative: score for relative, score, _matched in scored}
+    assert ranked["business/strategy/pricing.md"] > ranked["business/audience/primary.md"]
+    assert not any(path.endswith("_index.md") for path in ranked)

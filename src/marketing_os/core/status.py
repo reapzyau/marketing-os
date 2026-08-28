@@ -4,22 +4,39 @@ import re
 from pathlib import Path
 from typing import Any
 
+from marketing_os.core.catalog import parse_frontmatter
 from marketing_os.core.results import envelope, finding, next_action
 from marketing_os.core.schema import load_schema, read_config, repo_mode
 from marketing_os.core.skills import bundled_skills, inspect_runtimes
 from marketing_os.core.validation import validation_findings
 
 
-def _substantive(path: Path) -> bool:
-    if not path.is_file():
-        return False
+def substantive_text(text: str) -> bool:
+    """Whether a context document's text holds real content rather than scaffolding.
+
+    The frontmatter contract block is metadata about the document, not the operator's
+    answer, so it is stripped before judging. Counting it would report an untouched
+    template stub as complete.
+
+    Callers that hold a proposed document in memory (``mos context set --plan``) judge it
+    with the same function that judges one on disk, so a preview can never disagree with
+    the status that follows the write.
+    """
+    _meta, body = parse_frontmatter(text)
     useful: list[str] = []
-    for raw in path.read_text(encoding="utf-8").splitlines():
+    for raw in body.splitlines():
         line = raw.strip()
         if not line or line.startswith("#") or line.lower().startswith("todo:"):
             continue
         useful.append(line)
     return len(" ".join(useful)) >= 30
+
+
+def substantive(path: Path) -> bool:
+    """Whether the context file at ``path`` holds real content rather than scaffolding."""
+    if not path.is_file():
+        return False
+    return substantive_text(path.read_text(encoding="utf-8"))
 
 
 def _offer_files(root: Path) -> list[Path]:
@@ -36,13 +53,13 @@ def _offer_files(root: Path) -> list[Path]:
 def context_status(root: Path) -> dict[str, Any]:
     schema = load_schema()
     fields = {
-        name: {"path": relative, "complete": _substantive(root / relative)}
+        name: {"path": relative, "complete": substantive(root / relative)}
         for name, relative in schema["context_files"].items()
     }
     offers = _offer_files(root)
     fields["offer"] = {
         "path": "business/offers/<offer-slug>/offer.md",
-        "complete": any(_substantive(path) for path in offers),
+        "complete": any(substantive(path) for path in offers),
         "files": [path.relative_to(root).as_posix() for path in offers],
     }
     required = ("brand", "voice", "audience", "offer")

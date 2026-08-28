@@ -44,3 +44,17 @@ that is not installed. When the repository is unhealthy, name the exact repair r
 (`mos validate . --json`, `mos doctor . --json`, or `mos skills sync`) rather than guessing.
 
 If this is not a marketing-os repository, say so plainly and route to `mos-onboard`.
+
+## Document contract
+
+Every file you write under `business/`, `knowledge/`, `content/`, `campaigns/`, `reporting/`,
+or `outputs/` opens with the frontmatter block defined in the repository's `CONTRACT.md`:
+`title`, `type`, `description`, `date`, `status`, plus at least one of `sources`, `related`,
+or `produced_by`. Deliverables must carry `sources:` — an output with no sources is not
+finished. Emit the block as you write the file; never leave it for a later pass.
+
+## Navigation coverage
+
+Run `mos index status . --json` for catalogue freshness and the share of documents carrying
+frontmatter, a description, and an outgoing link. A stale or absent catalogue means
+`mos query` is reading every document on every question; fix it with `mos index build .`.

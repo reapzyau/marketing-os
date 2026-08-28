@@ -1,3 +1,13 @@
+---
+title: Voice
+type: business
+description: How {{BUSINESS_NAME}} sounds at its best, with the language to use and the habits to avoid.
+date: {{TODAY}}
+status: draft
+related:
+  - business/brand/brand.md
+  - business/audience/primary.md
+---
 # Voice
 
 ## Voice summary

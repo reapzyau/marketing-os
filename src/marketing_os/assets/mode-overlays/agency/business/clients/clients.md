@@ -1,3 +1,13 @@
+---
+title: Client registry
+type: business
+description: Every client this agency serves, where their brain lives, and the access status of each engagement.
+date: {{TODAY}}
+status: active
+related:
+  - business/strategy/strategy.md
+---
+
 # Client Registry
 
 This file holds pointers only. Client work lives in each client's own repo, never

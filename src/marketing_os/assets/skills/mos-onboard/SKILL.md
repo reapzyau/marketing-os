@@ -36,8 +36,12 @@ Run `mos status . --json` first, and tell the user what you found:
   context.
 - **An empty directory** — you'll create a new brain here; you still need the name, mode, and
   destination (steps 2–3).
-- **A non-empty directory that is not a marketing-os brain** — do not adopt or migrate it. Tell
-  the user and ask for a new, empty destination instead.
+- **A folder that already holds a brain the engine does not recognise** — a `.mos/config.yaml`
+  written as YAML, or a `BRAIN.md` beside a `business/` tree — do not scaffold over it. Hand it
+  to `mos attach "<path>" --plan --json` (preview, then `--yes` after approval); attach rewrites
+  only the config and adds only missing scaffold files, never the user's content.
+- **A non-empty directory that is neither** — do not adopt or migrate it. Tell the user and ask
+  for a new, empty destination instead.
 
 ## 2. Ask for the business name and destination
 
@@ -124,3 +128,11 @@ mos doctor . --json
 
 Finish with the business outcome, any context gaps, runtime readiness, and one next action — then
 ask what they want to do next.
+
+## Document contract
+
+Every file you write under `business/`, `knowledge/`, `content/`, `campaigns/`, `reporting/`,
+or `outputs/` opens with the frontmatter block defined in the repository's `CONTRACT.md`:
+`title`, `type`, `description`, `date`, `status`, plus at least one of `sources`, `related`,
+or `produced_by`. Deliverables must carry `sources:` — an output with no sources is not
+finished. Emit the block as you write the file; never leave it for a later pass.

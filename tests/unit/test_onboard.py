@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from marketing_os.core import atomic as atomic_module
 from marketing_os.core import onboard as onboard_mod
 from marketing_os.core.onboard import onboard_repo
 from marketing_os.core.setup import setup_repo
@@ -271,3 +272,55 @@ def test_onboard_hq_ignored_for_non_client_mode(tmp_path: Path) -> None:
     codes = [item["code"] for item in result["findings"]]
     assert "hq-ignored" in codes
     assert result["ok"] is True
+
+
+def test_a_failed_registry_write_leaves_the_registry_exactly_as_it_was(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """One row is inserted, but the whole registry is rewritten to insert it.
+
+    A truncating write that failed mid-insert cost every client already listed. The last
+    step is now a rename over the target, so the registry is either the old one or the new
+    one.
+    """
+    hq = _agency_hq(tmp_path)
+    registry = hq / "business" / "clients" / "clients.md"
+    before = registry.read_bytes()
+    assert before
+
+    def explode(source: object, destination: object) -> None:
+        raise OSError("the disk went away mid-write")
+
+    monkeypatch.setattr(atomic_module.os, "replace", explode)
+    with pytest.raises(OSError):
+        onboard_repo(
+            tmp_path / "acme-widgets",
+            "Widgets Inc",
+            "all",
+            mode="client",
+            agency="Example Agency",
+            hq=hq,
+            apply=True,
+        )
+
+    assert registry.read_bytes() == before
+    assert list(registry.parent.glob(".clients.md.*")) == []  # and no scratch file left behind
+
+
+def test_onboard_scaffolds_the_obsidian_vault(tmp_path: Path) -> None:
+    target = tmp_path / "brain"
+    result = setup_repo(target, "Vault Business", "all", mode="agency", apply=True)
+    assert result["ok"] is True
+    assert (target / ".obsidian" / "app.json").is_file()
+    plugins = target / ".obsidian" / "plugins"
+    for plugin_id in (
+        "obsidian-icon-folder",
+        "git-file-explorer-colors",
+        "hide-empty-folders",
+    ):
+        assert (plugins / plugin_id / "main.js").is_file(), plugin_id
+        assert (plugins / plugin_id / "manifest.json").is_file(), plugin_id
+    # The agency overlay adds files; it must not clobber the shipped vault config.
+    icons = (plugins / "obsidian-icon-folder" / "data.json").read_text(encoding="utf-8")
+    assert '"business/clients"' in icons
+    assert (target / "business" / "clients" / "clients.md").is_file()

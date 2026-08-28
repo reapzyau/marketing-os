@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>marketing-os</title>
+    <meta name="color-scheme" content="light dark" />
+    <!--
+      The server replaces __MOS_SESSION_TOKEN__ with a fresh session token every time
+      this page is served. app.js reads it from this meta tag and sends it as the
+      X-MOS-Token header on every /api/* request; without it the API answers 403.
+
+      Content-Security-Policy is script-src 'self': every line of JavaScript must live
+      in a real file under /static. No inline <script>, no CDN, no external fetches.
+    -->
+    <meta name="mos-token" content="__MOS_SESSION_TOKEN__" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%235b46e5'/%3E%3Cg fill='none' stroke='white' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 8.5 3.5 3.5L6 15.5'/%3E%3Cpath d='M12.5 16.5H18'/%3E%3C/g%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+
+    <svg class="sprite" aria-hidden="true" focusable="false" width="0" height="0">
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></symbol>
+      <symbol id="i-alert" viewBox="0 0 24 24">
+        <path d="M12 3 2 20h20L12 3Z" /><path d="M12 10v4" /><path d="M12 17.5v.5" />
+      </symbol>
+      <symbol id="i-info" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="9" /><path d="M12 11v5" /><path d="M12 7.5v.5" />
+      </symbol>
+      <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12" /></symbol>
+      <symbol id="i-folder" viewBox="0 0 24 24">
+        <path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
+      </symbol>
+      <symbol id="i-file" viewBox="0 0 24 24">
+        <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z" /><path d="M14 3v5h5" />
+      </symbol>
+      <symbol id="i-right" viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6" /></symbol>
+      <symbol id="i-left" viewBox="0 0 24 24"><path d="M19 12H6M11 18l-6-6 6-6" /></symbol>
+      <symbol id="i-copy" viewBox="0 0 24 24">
+        <rect x="9" y="9" width="12" height="12" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h10" />
+      </symbol>
+      <symbol id="i-refresh" viewBox="0 0 24 24">
+        <path d="M20 11a8 8 0 1 0-.7 4.5" /><path d="M20 5v6h-6" />
+      </symbol>
+      <symbol id="i-brain" viewBox="0 0 24 24">
+        <path d="m6 8.5 3.5 3.5L6 15.5" /><path d="M12.5 16.5H18" />
+      </symbol>
+      <symbol id="i-terminal" viewBox="0 0 24 24"><path d="m5 8 4 4-4 4" /><path d="M12 17h7" /></symbol>
+      <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16" /><path d="M4 12h16" /><path d="M4 17h16" /></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14" /><path d="M5 12h14" /></symbol>
+      <symbol id="i-store" viewBox="0 0 24 24">
+        <path d="M4 9h16v10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z" /><path d="m4 9 1.6-4.4A1 1 0 0 1 6.5 4h11a1 1 0 0 1 .9.6L20 9" />
+        <path d="M10 20v-5h4v5" />
+      </symbol>
+      <symbol id="i-people" viewBox="0 0 24 24">
+        <circle cx="9" cy="8" r="3.2" /><path d="M3 20a6 6 0 0 1 12 0" /><path d="M16.5 5.6a3.2 3.2 0 0 1 0 6.3" />
+        <path d="M18 14.4A6 6 0 0 1 21.5 20" />
+      </symbol>
+      <symbol id="i-badge" viewBox="0 0 24 24">
+        <circle cx="12" cy="8.5" r="3.5" /><path d="M5.5 20a6.5 6.5 0 0 1 13 0" />
+      </symbol>
+      <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4.5 4.5" /></symbol>
+      <symbol id="i-chat" viewBox="0 0 24 24">
+        <path d="M20 15a2 2 0 0 1-2 2H8l-4 3V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2Z" />
+      </symbol>
+      <symbol id="i-home" viewBox="0 0 24 24">
+        <path d="m4 10.5 8-6.5 8 6.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z" />
+      </symbol>
+    </svg>
+
+    <!-- The bar carries the drawer button and the name of the brain on screen. Everything
+         else that used to live here (the mark, the section tabs, Refresh) is in the
+         sidebar, which is the drawer the button opens on a narrow screen. -->
+    <header class="topbar" id="topbar">
+      <button class="btn btn--ghost btn--icon menu-btn" id="btn-menu" type="button"
+        aria-expanded="false" aria-controls="sidebar">
+        <svg viewBox="0 0 24 24" class="icon"><use href="#i-menu" /></svg>
+        <span>Menu</span>
+      </button>
+      <p class="topbar__brain" id="topbar-brain"></p>
+    </header>
+
+    <div class="shell">
+      <!-- One labelled landmark for the whole left panel: the brains, the sections, and
+           Refresh. The tablist keeps its own semantics inside it. -->
+      <nav class="sidebar" id="sidebar" aria-label="Brains and sections" hidden>
+        <div class="sidebar__top">
+          <a class="brand" href="/">
+            <span class="brand__mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" class="icon"><use href="#i-brain" /></svg>
+            </span>
+            <span class="brand__text">
+              <span class="brand__name">marketing&#8209;os</span>
+              <span class="brand__sub" id="brand-sub">the local app</span>
+            </span>
+          </a>
+          <button class="btn btn--ghost btn--icon drawer-close" id="btn-drawer-close" type="button"
+            title="Close the menu">
+            <svg viewBox="0 0 24 24" class="icon"><use href="#i-x" /></svg>
+            <span class="sr-only">Close the menu</span>
+          </button>
+        </div>
+
+        <section class="sidebar__section" aria-labelledby="sb-brains-title">
+          <h2 class="sidebar__title" id="sb-brains-title">Brains</h2>
+          <!-- Re-filled on every change; a live region would read the whole list. -->
+          <ul class="brains" id="brains" role="list"></ul>
+          <div class="sidebar__actions">
+            <button class="sidebar__action" id="btn-new-brain" type="button">
+              <svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><use href="#i-plus" /></svg>
+              <span>Set up another brain</span>
+            </button>
+            <button class="sidebar__action" id="btn-attach-folder" type="button">
+              <svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><use href="#i-folder" /></svg>
+              <span>Attach a folder&hellip;</span>
+            </button>
+          </div>
+        </section>
+
+        <section class="sidebar__section" id="tabs" aria-labelledby="sb-nav-title" hidden>
+          <h2 class="sidebar__title" id="sb-nav-title">Navigation</h2>
+          <div class="tabs" role="tablist" aria-label="Sections" aria-orientation="vertical">
+            <button class="tab" id="tab-dashboard" type="button" role="tab" aria-selected="true"
+              aria-controls="dashboard">
+              <svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><use href="#i-home" /></svg>
+              <span>Dashboard</span>
+            </button>
+            <button class="tab" id="tab-commands" type="button" role="tab" aria-selected="false"
+              aria-controls="commands">
+              <svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><use href="#i-terminal" /></svg>
+              <span>Commands</span>
+            </button>
+          </div>
+        </section>
+
+        <footer class="sidebar__foot">
+          <button class="btn btn--ghost btn--icon" id="btn-refresh" type="button" hidden
+            title="Re-read the folder">
+            <svg viewBox="0 0 24 24" class="icon"><use href="#i-refresh" /></svg>
+            <span>Refresh</span>
+          </button>
+        </footer>
+      </nav>
+
+    <main id="main" class="main">
+      <!-- ---------- boot / fatal ---------- -->
+      <section class="boot" id="boot" aria-labelledby="boot-title">
+        <div class="boot__card">
+          <div class="spinner" aria-hidden="true"></div>
+          <h1 class="boot__title" id="boot-title">Getting ready&hellip;</h1>
+          <p class="boot__body" id="boot-body">One moment.</p>
+          <p class="boot__detail" id="boot-detail"></p>
+          <div id="boot-actions" class="boot__actions"></div>
+        </div>
+      </section>
+
+      <!-- ---------- onboarding wizard ---------- -->
+      <section class="wizard" id="wizard" aria-label="Set up a business brain" hidden>
+        <ol class="stepper" id="stepper" role="list" aria-label="Setup progress">
+          <li class="stepper__item" data-step="1"><span class="stepper__dot" aria-hidden="true">1</span><span class="stepper__state sr-only"></span><span class="stepper__label">Folder</span></li>
+          <li class="stepper__item" data-step="2"><span class="stepper__dot" aria-hidden="true">2</span><span class="stepper__state sr-only"></span><span class="stepper__label">Who it's for</span></li>
+          <li class="stepper__item" data-step="3"><span class="stepper__dot" aria-hidden="true">3</span><span class="stepper__state sr-only"></span><span class="stepper__label">Name</span></li>
+          <li class="stepper__item" data-step="4"><span class="stepper__dot" aria-hidden="true">4</span><span class="stepper__state sr-only"></span><span class="stepper__label">Preview</span></li>
+          <li class="stepper__item" data-step="5"><span class="stepper__dot" aria-hidden="true">5</span><span class="stepper__state sr-only"></span><span class="stepper__label">Create</span></li>
+        </ol>
+
+        <div class="wizard__card">
+          <div class="wizard__body">
+            <!-- Step 1 -->
+            <div class="step" data-step="1">
+              <p class="step__eyebrow">Step 1 of 5</p>
+              <h1 class="step__title" id="step-title">Let&rsquo;s set up your business brain</h1>
+              <p class="step__lede">
+                The brain is one folder of ordinary files that holds everything
+                marketing&#8209;os learns about your business &mdash; your brand, how you sound,
+                who you sell to, what you sell. We have already picked a good place to keep it.
+              </p>
+
+              <div class="field">
+                <div class="readout readout--lead" id="where-readout"></div>
+                <p class="sr-only" id="where-live" aria-live="polite"></p>
+                <div id="where-found"></div>
+
+                <div class="browse">
+                  <button class="btn btn--secondary" type="button" id="btn-browse"
+                    aria-expanded="false" aria-controls="browse-panel">Choose a folder&hellip;</button>
+                  <div class="browse__panel" id="browse-panel" hidden></div>
+                </div>
+
+                <details class="tech tech--quiet tech--choice" id="where-tech">
+                  <summary class="tech__sum">Put it somewhere else</summary>
+                  <div class="tech__body">
+                    <p class="field__label" id="where-pick">Other places</p>
+                    <div class="chips" id="path-chips" role="group" aria-labelledby="where-pick"></div>
+                    <label class="field__label field__label--spaced" for="in-path">
+                      Or type an exact location
+                    </label>
+                    <p class="field__help" id="path-help">
+                      Anywhere you like. The brain gets its own folder inside it, named after
+                      your business. If a folder is not there yet, it gets created.
+                    </p>
+                    <input class="input input--mono" id="in-path" type="text" spellcheck="false"
+                      autocomplete="off" aria-describedby="path-help" />
+                  </div>
+                </details>
+              </div>
+            </div>
+
+            <!-- Step 2 -->
+            <div class="step" data-step="2" hidden>
+              <p class="step__eyebrow">Step 2 of 5</p>
+              <h1 class="step__title">Who is this brain for?</h1>
+              <p class="step__lede">
+                This is the one answer that changes what you get. Pick the sentence that sounds
+                like you.
+              </p>
+
+              <fieldset class="modes">
+                <legend class="sr-only">Who is this brain for?</legend>
+
+                <div class="mode">
+                  <input type="radio" name="mode" id="mode-in-house" value="in-house" />
+                  <label class="mode__card" for="mode-in-house">
+                    <span class="mode__icon" aria-hidden="true"><svg viewBox="0 0 24 24" class="icon"><use href="#i-store" /></svg></span>
+                    <span class="mode__text">
+                      <span class="mode__title">I market my own business<span class="mode__tag">most people</span></span>
+                      <span class="mode__body">
+                        One business that belongs to you — your gym, your shop, your software.
+                        Everything in here is about that one brand: how it sounds, who it is for,
+                        what it sells.
+                      </span>
+                      <span class="mode__delta">
+                        <svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><use href="#i-right" /></svg>
+                        Your brand only. No client list.
+                      </span>
+                    </span>
+                    <span class="mode__check" aria-hidden="true"><svg viewBox="0 0 24 24" class="icon"><use href="#i-check" /></svg></span>
+                  </label>
+                </div>
+
+                <div class="mode">
+                  <input type="radio" name="mode" id="mode-agency" value="agency" />
+                  <label class="mode__card" for="mode-agency">
+                    <span class="mode__icon" aria-hidden="true"><svg viewBox="0 0 24 24" class="icon"><use href="#i-people" /></svg></span>
+                    <span class="mode__text">
+                      <span class="mode__title">I market other people's businesses</span>
+                      <span class="mode__body">
+                        You take on clients. This folder becomes your agency's own home base — your
+                        positioning, your process — and it carries a client list where every client
+                        you sign gets a row.
+                      </span>
+                      <span class="mode__delta">
+                        <svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><use href="#i-right" /></svg>
+                        Your brand, plus a client list.
+                      </span>
+                    </span>
+                    <span class="mode__check" aria-hidden="true"><svg viewBox="0 0 24 24" class="icon"><use href="#i-check" /></svg></span>
+                  </label>
+                </div>
+
+                <div class="mode">
+                  <input type="radio" name="mode" id="mode-client" value="client"
+                    aria-controls="agency-field" />
+                  <label class="mode__card" for="mode-client">
+                    <span class="mode__icon" aria-hidden="true"><svg viewBox="0 0 24 24" class="icon"><use href="#i-badge" /></svg></span>
+                    <span class="mode__text">
+                      <span class="mode__title">Someone hired me to market theirs</span>
+                      <span class="mode__body">
+                        The business in here is not yours — you work on it for an agency. Build one
+                        of these per client. It holds that client's brand rather than your own, and
+                        we ask which agency it belongs to.
+                      </span>
+                      <span class="mode__delta">
+                        <svg viewBox="0 0 24 24" class="icon" aria-hidden="true"><use href="#i-right" /></svg>
+                        One client's brand, filed under an agency.
+                      </span>
+                    </span>
+                    <span class="mode__check" aria-hidden="true"><svg viewBox="0 0 24 24" class="icon"><use href="#i-check" /></svg></span>
+                  </label>
+                </div>
+              </fieldset>
+
+              <div class="field field--nested" id="agency-field" hidden>
+                <label class="field__label" for="in-agency">Which agency is this client with?</label>
+                <p class="field__help" id="agency-help">
+                  The agency's name as clients would say it. It gets recorded in the brain so the
+                  assistants know whose client this is.
+                </p>
+                <input class="input" id="in-agency" type="text" autocomplete="off"
+                  placeholder="Northbeam Marketing" aria-describedby="agency-help" />
+              </div>
+
+              <details class="tech tech--quiet">
+                <summary class="tech__sum">Show the technical bit</summary>
+                <div class="tech__body">
+                  <p class="tech__line">
+                    Your answer sets <code>--mode</code>. Agency also scaffolds
+                    <code>business/clients/clients.md</code>; client records the agency name in
+                    <code>.mos/config.yaml</code>. In-house adds neither.
+                  </p>
+                </div>
+              </details>
+            </div>
+
+            <!-- Step 3 -->
+            <div class="step" data-step="3" hidden>
+              <p class="step__eyebrow">Step 3 of 5</p>
+              <h1 class="step__title">What's the business called?</h1>
+              <p class="step__lede">
+                Use the name real customers use. It goes on the front page of the brain and into
+                every document the assistants write for you.
+              </p>
+
+              <div class="field">
+                <label class="field__label" for="in-name">Business name</label>
+                <p class="field__help" id="name-help">
+                  However you would say it out loud. You can change it later.
+                </p>
+                <input class="input input--lg" id="in-name" type="text" autocomplete="off"
+                  placeholder="Cascade Strength Co." aria-describedby="name-help" />
+              </div>
+
+              <div class="readout" id="name-readout" aria-live="polite"></div>
+            </div>
+
+            <!-- Step 4 -->
+            <div class="step" data-step="4" hidden>
+              <p class="step__eyebrow">Step 4 of 5</p>
+              <h1 class="step__title">Here's exactly what gets created</h1>
+              <p class="step__lede">
+                Nothing has been written yet. This is the real plan, read back from the command
+                that would run.
+              </p>
+              <div id="preview-body"></div>
+            </div>
+
+            <!-- Step 5 -->
+            <div class="step" data-step="5" hidden>
+              <p class="step__eyebrow">Step 5 of 5</p>
+              <h1 class="step__title" id="apply-title">Building your brain</h1>
+              <p class="step__lede" id="apply-lede">
+                Writing the files, then checking the result. This usually takes a few seconds.
+              </p>
+              <div id="apply-body"></div>
+            </div>
+          </div>
+
+          <footer class="wizard__foot">
+            <button class="btn btn--ghost" id="btn-back" type="button">
+              <svg viewBox="0 0 24 24" class="icon"><use href="#i-left" /></svg>
+              <span>Back</span>
+            </button>
+            <p class="wizard__hint" id="wizard-hint"></p>
+            <button class="btn btn--primary" id="btn-next" type="button"
+              aria-describedby="wizard-hint">
+              <span>Continue</span>
+              <svg viewBox="0 0 24 24" class="icon"><use href="#i-right" /></svg>
+            </button>
+          </footer>
+        </div>
+      </section>
+
+      <!-- ---------- the interview: mos context, one question per screen ---------- -->
+      <section class="view interview" id="interview" aria-labelledby="iv-title" hidden>
+        <header class="page-head">
+          <div class="page-head__main">
+            <p class="page-head__eyebrow" id="iv-eyebrow">&nbsp;</p>
+            <h1 class="page-head__title" id="iv-title">&nbsp;</h1>
+            <p class="page-head__lede" id="iv-hint"></p>
+          </div>
+          <div class="page-head__end">
+            <button class="btn btn--ghost" id="iv-exit" type="button">
+              <svg viewBox="0 0 24 24" class="icon"><use href="#i-left" /></svg>
+              <span>Back to the dashboard</span>
+            </button>
+          </div>
+        </header>
+        <ol class="iv-rail" id="iv-rail" role="list" aria-label="Questions"></ol>
+        <div id="iv-body"></div>
+      </section>
+
+      <!-- ---------- attach: a brain from an older layout, plan first ---------- -->
+      <section class="view" id="attach" aria-labelledby="attach-title" hidden>
+        <header class="page-head">
+          <div class="page-head__main">
+            <p class="page-head__eyebrow">Older layout</p>
+            <h1 class="page-head__title" id="attach-title">&nbsp;</h1>
+            <p class="page-head__lede" id="attach-lede"></p>
+          </div>
+        </header>
+        <div id="attach-body"></div>
+      </section>
+
+      <!-- ---------- dashboard ---------- -->
+      <section class="view" id="dashboard" role="tabpanel" tabindex="0"
+        aria-labelledby="tab-dashboard" hidden>
+        <header class="page-head">
+          <div class="page-head__main">
+            <p class="page-head__eyebrow" id="dash-eyebrow">Business brain</p>
+            <h1 class="page-head__title" id="dash-title">&nbsp;</h1>
+            <div class="page-head__meta" id="dash-meta"></div>
+          </div>
+          <div class="page-head__end" id="dash-health"></div>
+        </header>
+        <div id="dash-body"></div>
+      </section>
+
+      <!-- ---------- commands ---------- -->
+      <section class="view" id="commands" role="tabpanel" tabindex="0"
+        aria-labelledby="tab-commands" hidden>
+        <header class="page-head">
+          <div class="page-head__main">
+            <p class="page-head__eyebrow">Every command, one click away</p>
+            <h1 class="page-head__title">Commands</h1>
+            <p class="page-head__lede">
+              These are the same commands the terminal runs. Each one shows you the exact line to
+              type, so you can do it yourself next time.
+            </p>
+          </div>
+        </header>
+        <div class="cmd-layout">
+          <nav class="cmd-list" id="cmd-list" aria-label="Commands"></nav>
+          <div class="cmd-panel" id="cmd-panel"></div>
+        </div>
+      </section>
+    </main>
+    </div>
+
+    <p class="sr-only" id="live" role="status" aria-live="polite"></p>
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>

@@ -6,6 +6,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from marketing_os.core.atomic import atomic_write
 from marketing_os.core.results import envelope, finding, next_action
 from marketing_os.core.schema import read_config, template_root
 from marketing_os.core.setup import _render, setup_repo
@@ -112,9 +113,9 @@ def _append_to_registry(
     if apply:
         newline = "\r\n" if "\r\n" in text else "\n"
         row = _registry_row(name, _registry_repo_path(hq, client_repo))
-        registry.write_text(
-            _insert_registry_row(text, row, newline), encoding="utf-8", newline=""
-        )
+        # The registry is a hand-maintained document being rewritten whole to insert one
+        # row, so a truncating write that fails costs every row already in it.
+        atomic_write(registry, _insert_registry_row(text, row, newline))
     return changes, findings
 
 

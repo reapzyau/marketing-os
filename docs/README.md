@@ -16,7 +16,9 @@ straight to the document you need.
   [setup-guide.md](setup-guide.md) from install to a healthy repository.
 - **Operating a brain** - keep [cli-reference.md](cli-reference.md) and
   [business-repo.md](business-repo.md) close; reach for
-  [troubleshooting.md](troubleshooting.md) when a command reports a problem.
+  [troubleshooting.md](troubleshooting.md) when a command reports a problem. The navigation
+  layer that makes retrieval cheap is described in business-repo.md, and the graph layer that
+  deliberately stays outside the CLI in [knowledge-graph.md](knowledge-graph.md).
 - **Contracts and internals** - read [architecture.md](architecture.md),
   [json-output-contract.md](json-output-contract.md), and
   [agent-runtime-contract.md](agent-runtime-contract.md) to understand how the CLI and
@@ -34,6 +36,7 @@ straight to the document you need.
 | [agent-runtime-contract.md](agent-runtime-contract.md) | How packaged skills reach Claude Code and Codex through content-hashed generated copies. |
 | [architecture.md](architecture.md) | Engine-repo versus business-repo split, module map, and generated runtime state. |
 | [business-repo.md](business-repo.md) | The generated brain's structure, memory layers, and file lifecycle rules. |
+| [knowledge-graph.md](knowledge-graph.md) | Why the navigation layer ships in the CLI and the model-backed graph does not, with the measurements behind that split. |
 | [troubleshooting.md](troubleshooting.md) | Per-state remedies keyed to `mos status` and `mos doctor` output. |
 | [../decisions/README.md](../decisions/README.md) | Convention for recording directional and architectural decisions. |
 

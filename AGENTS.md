@@ -2,7 +2,8 @@
 
 This is the marketing-os engine repository, not a business repository.
 
-- Keep the CLI deterministic and model-free.
+- Keep the CLI deterministic and model-free. `core/assist.py` is the single documented
+  exception and stays that way: no other module may invoke a model or a runtime.
 - Treat `src/marketing_os/assets/skills/` as the only skill source.
 - Never add tracked runtime copies under `.claude/skills/` or `.agents/skills/`.
 - Do not copy files from predecessor implementations; implement from this repository's contracts.

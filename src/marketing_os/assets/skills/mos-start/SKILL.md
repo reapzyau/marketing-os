@@ -37,9 +37,19 @@ Read in this order:
 
 Do not load `archive/` for ordinary grounding.
 
+When the request needs prior work, navigate rather than search: read `_index.md` at the
+level you need, choose a branch from its one-line summaries, then open the two or three
+documents that matter. `mos query "<question>" . --json` returns both the candidates and
+the index chain to walk; add `--grep` for a literal string such as a URL or an error.
+
 ## Route
 
-- If this is not a marketing-os repository, use `mos-onboard`.
+- If `mos status` reports `absent` but the folder already holds a brain — a `.mos/config.yaml`
+  written as YAML, or a `BRAIN.md` beside a `business/` tree — do not scaffold over it. Run
+  `mos attach . --plan --json`, show the user exactly what it will write (the config rewrite
+  plus only the missing scaffold files; nothing of theirs is touched), and only after they
+  approve run `mos attach . --yes --json`, then `mos status . --json` again.
+- If this is not a marketing-os repository and holds no brain, use `mos-onboard`.
 - If structure or runtime wiring is unhealthy, propose the exact repair plan before applying it.
 - If core context is incomplete, recommend the first missing context item.
 - Otherwise follow the user's stated intent directly.
@@ -58,3 +68,11 @@ Return:
 - any approval required before writing or external action.
 
 Do not dump a generic menu when the user has already stated what they want.
+
+## Document contract
+
+Every file you write under `business/`, `knowledge/`, `content/`, `campaigns/`, `reporting/`,
+or `outputs/` opens with the frontmatter block defined in the repository's `CONTRACT.md`:
+`title`, `type`, `description`, `date`, `status`, plus at least one of `sources`, `related`,
+or `produced_by`. Deliverables must carry `sources:` — an output with no sources is not
+finished. Emit the block as you write the file; never leave it for a later pass.
