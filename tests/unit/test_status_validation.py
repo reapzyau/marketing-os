@@ -41,6 +41,45 @@ def _complete_context(root: Path) -> None:
     )
 
 
+def _non_canonical_context(root: Path) -> None:
+    """Answer every required field the way a working brain does: nowhere the schema names.
+
+    This is the shape of a real repository — voice and audience in a reference folder with no
+    frontmatter at all, positioning marking itself canonical, and the offer content in a
+    singular ``business/offer/`` while the canonical plural folder sits empty.
+    """
+    positioning = root / "business/offer"
+    positioning.mkdir(parents=True)
+    (positioning / "core-offer.md").write_text(
+        "# Core offer\n\n"
+        "A six week build-along for marketers who want the system installed rather than "
+        "explained, at one fixed price.\n",
+        encoding="utf-8",
+    )
+    brand = root / "business/brand/positioning"
+    brand.mkdir(parents=True)
+    (brand / "positioning.md").write_text(
+        "---\ncanonical: true\n---\n\n# Positioning\n\n"
+        "The brain for marketers who would rather install a working system than read another "
+        "explanation of one.\n",
+        encoding="utf-8",
+    )
+    core = root / "reference/core"
+    core.mkdir(parents=True)
+    (core / "voice.md").write_text(
+        "# Voice\n\n"
+        "Precision-led and evidence-based. Every sentence earns its place, and nothing is "
+        "claimed that cannot be shown.\n",
+        encoding="utf-8",
+    )
+    (core / "audience.md").write_text(
+        "# Audience\n\n"
+        "Marketers running their own delivery who have tried the tools, kept none of them, "
+        "and want one system that holds.\n",
+        encoding="utf-8",
+    )
+
+
 def test_fresh_repo_validates_but_requires_context(tmp_path: Path) -> None:
     root = tmp_path / "brain"
     setup_repo(root, "Example Business", "all", mode="in-house", apply=True)
@@ -49,6 +88,9 @@ def test_fresh_repo_validates_but_requires_context(tmp_path: Path) -> None:
     assert validation["ok"] is True
     assert status["repo_state"] == "needs-context"
     assert status["context"]["missing"] == ["brand", "voice", "audience", "offer"]
+    # The scaffold is all TODO stubs, so discovery must find nothing to promote.
+    fields = status["context"]["fields"]
+    assert [fields[name]["source"] for name in status["context"]["required"]] == ["missing"] * 4
 
 
 def test_completed_context_becomes_ready(tmp_path: Path) -> None:
@@ -59,6 +101,52 @@ def test_completed_context_becomes_ready(tmp_path: Path) -> None:
     assert status["ok"] is True
     assert status["repo_state"] == "ready"
     assert status["context"]["ready"] is True
+    fields = status["context"]["fields"]
+    assert [fields[name]["source"] for name in status["context"]["required"]] == ["canonical"] * 4
+    assert all("discovered_path" not in fields[name] for name in fields)
+    assert fields["brand"]["path"] == "business/brand/brand.md"
+
+
+def test_non_canonical_context_reports_ready_without_moving_the_canonical_paths(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "brain"
+    setup_repo(root, "Example Business", "all", mode="in-house", apply=True)
+    _non_canonical_context(root)
+    status = status_repo(root)
+    fields = status["context"]["fields"]
+
+    assert status["context"]["ready"] is True
+    assert status["context"]["missing"] == []
+    assert status["repo_state"] == "ready"
+    assert [fields[name]["source"] for name in status["context"]["required"]] == ["discovered"] * 4
+    assert fields["voice"]["discovered_path"] == "reference/core/voice.md"
+    assert fields["audience"]["discovered_path"] == "reference/core/audience.md"
+    assert fields["brand"]["discovered_path"] == "business/brand/positioning/positioning.md"
+    assert fields["offer"]["discovered_path"] == "business/offer/core-offer.md"
+    # The canonical paths keep their meaning: they are still where an answer gets written.
+    assert fields["voice"]["path"] == "business/brand/voice.md"
+    assert fields["offer"]["path"] == "business/offers/<offer-slug>/offer.md"
+    # An unanswered field is still unanswered; discovery does not manufacture proof.
+    assert fields["proof"]["source"] == "missing"
+
+
+def test_validate_still_flags_a_non_canonical_layout_that_status_can_read(
+    tmp_path: Path,
+) -> None:
+    """Structural conformance and content detection are separate questions.
+
+    Status now finds the content in ``reference/``; validate still says ``reference/`` is not
+    part of the architecture. Both are true, and neither answer is allowed to soften the other.
+    """
+    root = tmp_path / "brain"
+    setup_repo(root, "Example Business", "all", mode="in-house", apply=True)
+    _non_canonical_context(root)
+    validation = validate_repo(root)
+    flagged = [item for item in validation["findings"] if item["code"] == "unknown-top-level"]
+    assert validation["ok"] is True
+    assert [item["path"] for item in flagged] == ["reference"]
+    assert status_repo(root)["context"]["ready"] is True
 
 
 def test_invalid_dated_artifact_is_reported(tmp_path: Path) -> None:
@@ -133,3 +221,98 @@ def test_doctor_reports_mode(tmp_path: Path) -> None:
     root = tmp_path / "brain"
     setup_repo(root, "Example Agency", "all", mode="agency", apply=True)
     assert doctor_repo(root)["mode"] == "agency"
+
+
+def test_navigation_files_never_answer_for_a_brain_that_is_still_stubs(tmp_path: Path) -> None:
+    """The end-to-end form of the cheapest false positive there is.
+
+    ``/mos-end`` tells the operator to run ``mos index sync`` at the end of every session, and
+    that writes an ``_index.md`` into every folder holding documents. A folder README is the
+    same shape by hand. Neither is anybody's answer, and a brain whose context files are all
+    untouched TODO stubs must still report all four required fields missing after both exist.
+    """
+    root = tmp_path / "brain"
+    setup_repo(root, "Example Business", "all", mode="in-house", apply=True)
+    for folder in ("audience", "brand", "offers", "proof", "strategy"):
+        (root / "business" / folder).mkdir(parents=True, exist_ok=True)
+        (root / "business" / folder / "_index.md").write_text(
+            f"# business/{folder}/ — index\n\n"
+            "*Generated by `mos index sync` — do not hand-edit.*\n\n"
+            "- [[business/log/2026-08-01-session]] — what happened in the last session\n",
+            encoding="utf-8",
+        )
+        (root / "business" / folder / "README.md").write_text(
+            f"# {folder}\n\nOne file per topic in here. Nothing has been written yet — this "
+            "folder is a map, not an answer, and it stays that way until someone fills it.\n",
+            encoding="utf-8",
+        )
+
+    context = status_repo(root)["context"]
+
+    assert context["missing"] == ["brand", "voice", "audience", "offer"]
+    assert context["ready"] is False
+    assert [entry["source"] for entry in context["fields"].values()] == ["missing"] * 6
+
+
+def test_an_offer_file_that_cannot_be_read_does_not_take_down_status(tmp_path: Path) -> None:
+    """One file saved as UTF-16 used to raise out of ``mos status``, ``doctor`` and ``context``.
+
+    Every other completeness check already treated an unreadable file as an unanswered one.
+    The offer glob was the single place that still called straight through to ``read_text``.
+    """
+    root = tmp_path / "brain"
+    setup_repo(root, "Example Business", "all", mode="in-house", apply=True)
+    offer = root / "business/offers/my-offer/offer.md"
+    offer.parent.mkdir(parents=True, exist_ok=True)
+    offer.write_bytes(b"\xff\xfe# O\x00f\x00f\x00e\x00r\x00 not valid utf-8 at all\n")
+
+    context = status_repo(root)["context"]
+
+    assert context["fields"]["offer"]["complete"] is False
+    assert "offer" in context["missing"]
+
+
+def test_an_offer_written_straight_into_the_offers_folder_is_named(tmp_path: Path) -> None:
+    """``files`` must name the file that answered, or ``context set`` writes a second one.
+
+    The glob only matches ``offers/<slug>/offer.md``. An offer written one level up answers
+    through the probe path instead, and reporting it complete with an empty ``files`` list
+    sent the next answer to ``business/offers/core-offer/offer.md`` — a second offer document
+    beside the one status was reading, with no ambiguity warning.
+    """
+    root = tmp_path / "brain"
+    setup_repo(root, "Example Business", "all", mode="in-house", apply=True)
+    (root / "business/offers").mkdir(parents=True, exist_ok=True)
+    (root / "business/offers/offer.md").write_text(
+        "# What we sell\n\nA six week build-along for marketers who want the system "
+        "installed rather than explained, at a fixed price.\n",
+        encoding="utf-8",
+    )
+
+    entry = status_repo(root)["context"]["fields"]["offer"]
+
+    assert entry["complete"] is True
+    assert entry["source"] == "canonical"
+    assert entry["files"] == ["business/offers/offer.md"]
+
+
+def test_a_scan_cut_short_by_its_budget_says_so_in_the_envelope(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """A partial scan reports itself as partial, so ``missing`` can be read for what it is."""
+    from marketing_os.core import discover
+
+    root = tmp_path / "brain"
+    setup_repo(root, "Example Business", "all", mode="in-house", apply=True)
+    (root / "reference/core").mkdir(parents=True, exist_ok=True)
+    for name in ("voice.md", "brand.md", "audience.md"):
+        (root / "reference/core" / name).write_text(
+            "# Heading\n\nEnough real writing here to clear the completeness bar without "
+            "any trouble at all.\n",
+            encoding="utf-8",
+        )
+    monkeypatch.setattr(discover, "FILE_BUDGET", 1)
+
+    fields = status_repo(root)["context"]["fields"]
+
+    assert any(entry.get("truncated") for entry in fields.values())

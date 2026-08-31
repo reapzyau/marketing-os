@@ -336,3 +336,54 @@ def test_a_successful_write_leaves_no_scratch_file_beside_the_target(tmp_path: P
     target = _brand_file(root)
     assert BRAND in target.read_text(encoding="utf-8")
     assert [path.name for path in target.parent.glob(".*")] == []
+
+
+def test_an_answer_found_elsewhere_is_shown_and_grounded_with_its_own_words(
+    tmp_path: Path,
+) -> None:
+    """``complete`` and ``body`` are two halves of one record and must not contradict.
+
+    ``show`` read the body from the canonical path alone, so a field answered somewhere else
+    came back marked answered with nothing in it — and that empty string went on to the
+    assistant as the operator's own words. Being told a question is answered and handed
+    nothing is strictly worse than being told it is missing, because a model that believes it
+    is answered stops asking.
+    """
+    from marketing_os.core.assist import grounding
+
+    root = _brain(tmp_path)
+    core = root / "reference/core"
+    core.mkdir(parents=True, exist_ok=True)
+    (core / "voice.md").write_text(
+        "# Voice\n\nPlain, direct and never salesy. We write the way a coach talks to a "
+        "beginner on their first night in the gym.\n",
+        encoding="utf-8",
+    )
+
+    voice = _field(show_context(root), "voice")
+
+    assert voice["complete"] is True
+    assert voice["source"] == "discovered"
+    assert voice["discovered_path"] == "reference/core/voice.md"
+    assert "never salesy" in voice["body"]
+    # The canonical path keeps its meaning: it is still where the next answer is written.
+    assert voice["path"] == "business/brand/voice.md"
+    assert voice["writes_to"] == "business/brand/voice.md"
+    assert voice["answered_in"] == "reference/core/voice.md"
+
+    answered = {item["name"]: item["text"] for item in grounding(root)["answered"]}
+    assert "never salesy" in answered["voice"]
+
+
+def test_show_survives_a_canonical_file_that_is_not_utf8(tmp_path: Path) -> None:
+    """``status`` already tolerated this file; ``show`` raising on it made them disagree."""
+    root = _brain(tmp_path)
+    (root / "business/brand/brand.md").write_bytes(
+        b"---\ntitle: Brand\n---\n\xff\xfe not valid utf-8 at all\n"
+    )
+
+    result = show_context(root)
+
+    assert result["ok"] is True
+    assert _field(result, "brand")["complete"] is False
+    assert _field(result, "brand")["body"] == ""

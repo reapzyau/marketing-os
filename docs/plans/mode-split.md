@@ -1,5 +1,13 @@
 # Plan: in-house / agency / client mode split
 
+> **Historical plan — not a live instruction.** This records what the mode split set out to
+> do at the time it was written. It was written while the scaffold command was still called
+> `mos setup` and the scaffold skill was still `mos-setup`; both were later merged into
+> `mos onboard` and `mos-onboard`. Every `mos setup` and `mos-setup` below is the name as of
+> then. Do not run them — there is no `setup` subcommand and no `mos-setup` skill. The
+> function `setup_repo` in `core/setup.py` does still exist and keeps its name.
+> For what is true now, read [../cli-reference.md](../cli-reference.md).
+
 Contract for rebuilding the mode system from scratch (never copy from the predecessor
 repo — see AGENTS.md). Builds on the conventions in docs/plans/cli-rebuild.md
 (envelope, --plan|--yes, agent-first grounded handoffs, stdlib only).

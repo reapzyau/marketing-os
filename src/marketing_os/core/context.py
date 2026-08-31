@@ -33,7 +33,12 @@ from marketing_os.core.atomic import atomic_write
 from marketing_os.core.catalog import parse_frontmatter
 from marketing_os.core.results import envelope, finding, next_action
 from marketing_os.core.schema import find_root, load_schema, slugify
-from marketing_os.core.status import context_status, substantive_text
+from marketing_os.core.status import (
+    REQUIRED_FIELDS,
+    context_status,
+    read_document,
+    substantive_text,
+)
 
 DATE_KEY = re.compile(r"^date\s*:")
 #: Unpaired surrogates: the only characters a ``str`` can hold that UTF-8 cannot encode.
@@ -130,9 +135,8 @@ FIELDS: dict[str, FieldSpec] = {
 def field_names() -> tuple[str, ...]:
     """Every settable field, required ones first, in the order an operator meets them."""
     schema_fields = list(load_schema()["context_files"]) + ["offer"]
-    required = ("brand", "voice", "audience", "offer")
-    rest = [name for name in schema_fields if name not in required]
-    return (*required, *rest)
+    rest = [name for name in schema_fields if name not in REQUIRED_FIELDS]
+    return (*REQUIRED_FIELDS, *rest)
 
 
 def _spec(name: str) -> FieldSpec:
@@ -298,14 +302,23 @@ def _operator_body(root: Path, entry: dict[str, Any]) -> tuple[str, str]:
 
     Template boilerplate reports as empty, because the same completeness test that
     ``mos status`` applies decides whether there is an answer here at all.
+
+    A field answered away from its canonical path is read from where the answer actually is.
+    Without that last fallback ``complete`` and ``body`` contradicted each other in the same
+    record: the field reported answered and the answer came back empty, and the empty string
+    went on to the assistant as the operator's own words — worse than reporting the field
+    missing, because a model told a question is answered stops asking it.
     """
-    candidates = entry.get("files") or [entry["path"]]
+    candidates = list(entry.get("files") or []) or [entry["path"]]
+    discovered = entry.get("discovered_path")
+    if discovered and discovered not in candidates:
+        candidates.append(discovered)
     for relative in candidates:
         path = root / relative
         if not path.is_file():
             continue
-        text = path.read_text(encoding="utf-8")
-        if not substantive_text(text):
+        text = read_document(path)
+        if text is None or not substantive_text(text):
             continue
         _meta, body = parse_frontmatter(text)
         return _without_heading(body).strip(), relative
@@ -342,20 +355,24 @@ def show_context(root: Path) -> dict[str, Any]:
         if entry is None:
             continue
         spec = _spec(name)
-        body, source = _operator_body(found, entry)
-        writes_to = (
-            _offer_target(entry, None)[0] if name == "offer" else entry["path"]
-        )
+        body, answered_in = _operator_body(found, entry)
+        # Where an answer lands, which is not always where the current one lives: a field
+        # answered somewhere else is still rewritten at its canonical path.
+        writes_to = _offer_target(entry, None)[0] if name == "offer" else entry["path"]
         record: dict[str, Any] = {
             "name": name,
             "question": spec.question,
             "hint": spec.hint,
             "path": entry["path"],
-            "writes_to": source or writes_to,
+            "writes_to": writes_to,
+            "answered_in": answered_in,
             "complete": entry["complete"],
+            "source": entry.get("source", "canonical" if entry["complete"] else "missing"),
             "required": name in required,
             "body": body,
         }
+        if "discovered_path" in entry:
+            record["discovered_path"] = entry["discovered_path"]
         if "files" in entry:
             record["files"] = list(entry["files"])
         fields.append(record)

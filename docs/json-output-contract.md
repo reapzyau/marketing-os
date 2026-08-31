@@ -46,7 +46,10 @@ Observed values include `mos.setup.v1`, `mos.status.v1`, `mos.validate.v1`,
 `mos.doctor.v1`, `mos.install.v1`, and `mos.skills-sync.v1`. The `v1` suffix is the
 stability promise: the seven required keys and their meanings will not change
 within `v1`. New optional facts may be added; existing ones will not be removed or
-repurposed under the same version.
+repurposed under the same version. One documented exception exists, in the context
+field entry below: `complete`, `ready` and `missing` widened from "answered at the
+canonical path" to "answered anywhere in the brain" when discovery landed, and the
+narrower reading is preserved under the new `source` key.
 
 ## Finding
 
@@ -73,6 +76,35 @@ Each entry in `findings` describes one problem:
 
 When nothing is required, it defaults to
 `{"id": "none", "reason": "No further action is required."}`.
+
+## Context field
+
+`status` and `doctor` carry a `context` object whose `fields` map holds one record per
+context field. `mos context show` reports the same facts, one per entry in its own
+`fields` array.
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `path` | string | The canonical path the schema names for this field. It does not move: it is where `mos context set` writes and what `mos validate` measures, whether or not the answer currently lives there. For `offer` it is the shape `business/offers/<offer-slug>/offer.md`, not a file expected to exist. |
+| `complete` | boolean | Whether the field is answered at all — at `path`, or in the file `discovered_path` names. |
+| `source` | string | Which of those it is: `canonical` (the file at `path` holds the answer), `discovered` (another file in the brain does), or `missing` (nothing does). Present on every field entry. |
+| `discovered_path` | string | The repo-relative file that answered. Present only when `source` is `discovered`. |
+| `files` | array of string | `offer` only: every offer document the brain holds. |
+| `truncated` | boolean | Present, and always `true`, only when the search hit its budget before finishing. A `missing` verdict beside it means "not found in what was looked at", not "not there". |
+
+Read the answer from `discovered_path` when it is present and from `path` otherwise. `mos
+context show` already does that for you: its `body` carries the words that made `complete`
+true wherever those words live, and `answered_in` names the file they came from.
+
+**Compatibility.** `complete` is the one pre-existing key whose meaning widened when
+discovery landed: it used to mean "the file at `path` holds real content" and now means
+"this field is answered somewhere". `ready` and `missing` widened with it, which is the
+point of the feature — a brain that answered a question in a folder of its owner's naming
+is ready to work. Nothing was removed, and the older, narrower reading is recoverable
+exactly, as `source == "canonical"`. That recovery is why `source` is written on every
+entry rather than only on the interesting ones. The one place the envelope can mislead a
+consumer that ignores it: on a discovered field, `complete` is `true` while `path` still
+points at an untouched stub.
 
 ## Example
 

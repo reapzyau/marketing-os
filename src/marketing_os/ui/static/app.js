@@ -495,6 +495,25 @@
     return splitPath(value).name;
   }
 
+  /* A path short enough to sit on one line, trimmed from the left so the file name — the
+   * part that says which answer this is — always survives. Callers put the whole path in a
+   * title attribute, so nothing is lost by shortening what is drawn. */
+  function shortPath(value, max) {
+    var text = normPath(value);
+    var limit = max || 44;
+    if (text.length <= limit) return text;
+    var parts = text.split("/");
+    var out = parts.pop() || text;
+    if (out.length + 2 > limit) return "\u2026" + out.slice(out.length - (limit - 1));
+    while (parts.length) {
+      var wider = parts[parts.length - 1] + "/" + out;
+      if (wider.length + 2 > limit) break;
+      out = wider;
+      parts.pop();
+    }
+    return "\u2026/" + out;
+  }
+
   /* Where a folder is, in words. It never returns a path: that is the whole point.
    * The desktop is checked before the home folder because it is the place an operator
    * can actually point at on screen, and on most systems it sits inside home anyway. */
@@ -3530,16 +3549,45 @@
     return { kind: "err", label: "No brain here" };
   }
 
+  /* The order an operator meets the questions in, and nothing more. Which of them are
+   * required is the server's answer, read from status.context.required — a question this
+   * list has never heard of still appears, and still counts. */
+  var CONTEXT_ORDER = ["brand", "voice", "audience", "offer", "strategy", "proof"];
+
+  /* The three states one answer can be in: written at the path the schema names, found
+   * somewhere else in the brain, or not answered at all.
+   *
+   * A current server sends `source` on every field. A response cached from an older one
+   * carries only `complete`, so a field with no source is read the way that server meant
+   * it — answered means answered at the canonical path — rather than throwing. */
+  function fieldSource(field) {
+    if (!field) return "missing";
+    if (field.source === "canonical" || field.source === "discovered") return field.source;
+    if (field.source === "missing") return "missing";
+    return field.complete ? "canonical" : "missing";
+  }
+
+  function fieldAnswered(field) {
+    return fieldSource(field) !== "missing";
+  }
+
   /* One denominator everywhere. "Ready" is judged on the required questions, so that is
    * the number both the health tile and the checklist show; the optional ones are counted
-   * separately and always carry the word optional. */
+   * separately and always carry the word optional. An answer found away from its canonical
+   * path is answered — it is counted as done, and counted again as found so the badge can
+   * say so out loud instead of quietly inflating the score. */
   function contextCounts(status) {
     var context = status.context || {};
     var fields = context.fields || {};
     var required = context.required || [];
-    var order = ["brand", "voice", "audience", "offer", "strategy", "proof"].filter(function (key) {
+    var known = CONTEXT_ORDER.filter(function (key) {
       return fields[key];
     });
+    var order = known.concat(
+      Object.keys(fields).filter(function (key) {
+        return CONTEXT_ORDER.indexOf(key) === -1;
+      })
+    );
     var requiredKeys = order.filter(function (key) {
       return required.indexOf(key) !== -1;
     });
@@ -3548,7 +3596,12 @@
     });
     function done(keys) {
       return keys.filter(function (key) {
-        return fields[key].complete;
+        return fieldAnswered(fields[key]);
+      }).length;
+    }
+    function found(keys) {
+      return keys.filter(function (key) {
+        return fieldSource(fields[key]) === "discovered";
       }).length;
     }
     return {
@@ -3556,8 +3609,10 @@
       fields: fields,
       required: requiredKeys.length,
       requiredDone: done(requiredKeys),
+      requiredFound: found(requiredKeys),
       optional: optionalKeys.length,
       optionalDone: done(optionalKeys),
+      optionalFound: found(optionalKeys),
     };
   }
 
@@ -3878,6 +3933,7 @@
     var order = counts.order;
     var fields = counts.fields;
     var required = (status.context || {}).required || [];
+    var elsewhere = counts.requiredFound;
 
     var card = el("section", { class: "card" }, [
       el("div", { class: "card__head" }, [
@@ -3889,14 +3945,22 @@
               order.length +
               " questions in all, of which " +
               counts.required +
-              " are required. The badge counts only the required ones.",
+              " are required. The badge counts only the required ones." +
+              (elsewhere
+                ? " An answer filed somewhere other than its usual place still counts as answered."
+                : ""),
           }),
         ]),
         el("span", { class: "card__end" }, [
-          el("span", {
-            class: counts.requiredDone === counts.required ? "pill pill--ok" : "pill pill--warn",
-            text: counts.requiredDone + " of " + counts.required + " required",
-          }),
+          el("span", { class: "pill-row" }, [
+            el("span", {
+              class: counts.requiredDone === counts.required ? "pill pill--ok" : "pill pill--warn",
+              text: counts.requiredDone + " of " + counts.required + " required",
+            }),
+            elsewhere
+              ? el("span", { class: "pill pill--found", text: elsewhere + " found elsewhere" })
+              : null,
+          ]),
         ]),
       ]),
     ]);
@@ -3917,32 +3981,71 @@
         order.map(function (key) {
           var field = fields[key];
           var info = contextInfo(key);
+          var source = fieldSource(field);
+          var answered = source !== "missing";
+          var elsewhere = source === "discovered";
+          var where = elsewhere ? field.discovered_path || "" : "";
           var isRequired = required.indexOf(key) !== -1;
-          return el("div", { class: "citem", "data-done": field.complete ? "true" : "false" }, [
-            el("span", { class: "citem__box" }, field.complete ? icon("check") : null),
-            el("div", { class: "citem__text" }, [
-              el("p", { class: "citem__title" }, [
-                info.title,
-                isRequired ? null : el("span", { class: "pill", text: "optional" }),
+          return el(
+            "div",
+            {
+              class: "citem",
+              "data-done": answered ? "true" : "false",
+              "data-source": source,
+            },
+            [
+              el("span", { class: "citem__box" }, answered ? icon("check") : null),
+              el("div", { class: "citem__text" }, [
+                el("p", { class: "citem__title" }, [
+                  info.title,
+                  isRequired ? null : el("span", { class: "pill", text: "optional" }),
+                  elsewhere
+                    ? el("span", { class: "pill pill--found", text: "Found elsewhere" })
+                    : null,
+                ]),
+                el("p", {
+                  class: "citem__body",
+                  text: elsewhere
+                    ? "Answered, but not in the usual place."
+                    : answered
+                      ? "Answered."
+                      : info.body,
+                }),
+                // The one path this card shows in plain sight: which file answered the
+                // question is the whole point of saying it was found elsewhere. Drawn
+                // short, read whole — the full path is the title and the screen-reader text.
+                where
+                  ? el("p", { class: "citem__found" }, [
+                      // The gap on .citem__found does the spacing; a trailing space here
+                      // would double it.
+                      "Found in",
+                      el("code", {
+                        class: "citem__path",
+                        title: where,
+                        "aria-hidden": "true",
+                        text: shortPath(where),
+                      }),
+                      el("span", { class: "sr-only", text: where }),
+                    ])
+                  : null,
               ]),
-              el("p", { class: "citem__body", text: field.complete ? "Answered." : info.body }),
-            ]),
-            el("span", { class: "citem__end" }, [
-              el("button", {
-                class: "btn btn--secondary btn--sm",
-                type: "button",
-                text: field.complete ? "Change" : "Answer",
-                title:
-                  (field.complete ? "Change your answer about " : "Answer the question about ") +
-                  info.title.toLowerCase(),
-                on: {
-                  click: function () {
-                    openInterview(key);
+              el("span", { class: "citem__end" }, [
+                el("button", {
+                  class: "btn btn--secondary btn--sm",
+                  type: "button",
+                  text: answered ? "Change" : "Answer",
+                  title:
+                    (answered ? "Change your answer about " : "Answer the question about ") +
+                    info.title.toLowerCase(),
+                  on: {
+                    click: function () {
+                      openInterview(key);
+                    },
                   },
-                },
-              }),
-            ]),
-          ]);
+                }),
+              ]),
+            ]
+          );
         })
       )
     );
@@ -3956,7 +4059,12 @@
             "ul",
             { class: "changes changes--static", role: "list" },
             order.map(function (key) {
-              return el("li", { text: contextInfo(key).title + " -> " + fields[key].path });
+              var field = fields[key];
+              var line = contextInfo(key).title + " -> " + (field.path || "no path reported");
+              if (fieldSource(field) === "discovered") {
+                line += "   (answered in " + (field.discovered_path || "another file") + ")";
+              }
+              return el("li", { text: line });
             })
           ),
         ],

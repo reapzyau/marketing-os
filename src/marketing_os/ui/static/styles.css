@@ -774,6 +774,26 @@ h3[tabindex="-1"]:focus-visible {
   color: var(--accent);
 }
 
+/* The third context state: answered, but not where the schema files it. Green would say
+   "filed correctly" and amber would say "you still owe us an answer", and neither is true,
+   so this reads as its own thing — the accent pair, drawn with a dashed edge for the bit
+   that is out of place. Both tokens flip with the palette, so it holds up in dark. */
+.pill--found {
+  border-style: dashed;
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* Two pills side by side in a card head, without relying on markup whitespace. */
+.pill-row {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+
 .dot {
   width: 7px;
   height: 7px;
@@ -793,7 +813,11 @@ h3[tabindex="-1"]:focus-visible {
 .card + .card,
 .card + .grid,
 .grid + .card,
-.grid + .grid {
+.grid + .grid,
+.hero + .card,
+.hero + .grid,
+.card + .hero,
+.grid + .hero {
   margin-top: 18px;
 }
 
@@ -2117,6 +2141,35 @@ h3[tabindex="-1"]:focus-visible {
 .citem__end {
   flex: none;
   margin-left: auto;
+}
+
+/* Answered elsewhere reads as its own state, not as a dimmer tick: the box carries the
+   accent rather than the success green, so the row and its pill say the same thing. */
+.citem[data-source="discovered"] .citem__box {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.citem__found {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 5px;
+  margin-top: 4px;
+  min-width: 0;
+  color: var(--ink-3);
+  font-size: 12.5px;
+}
+
+.citem__path {
+  max-width: 100%;
+  padding: 1px 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
 }
 
 /* -------------------------------------------------------------- commands -- */

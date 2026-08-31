@@ -7,6 +7,53 @@ All notable changes to marketing-os are recorded here. Versions follow
 
 ### Added
 
+- **`mos status` finds the context a brain already holds, wherever its owner filed it.** A
+  brain that had answered brand, voice, audience and offer at length — in folders of its own
+  naming — reported all four missing, and the dashboard then asked its owner to write again
+  what he had already written. New module `marketing_os.core.discover`: when a canonical
+  context file is missing or still boilerplate, it walks `business/` and `reference/` four
+  segments deep and scores every markdown document whose **own name** is one of the words the
+  field is known by (`positioning` and `identity` for brand, `tone` and `writing-style` for
+  voice, `avatar` and `icp` for audience, `pricing` and `package` for offer). The name is the
+  gate; a folder can corroborate it and can never stand in for it, because a folder name is a
+  filing decision and says nothing about what any one document inside it contains — a README,
+  a research bank or a copyright notice in `business/voice/` is not the voice of the business.
+  Navigation and machinery are refused outright rather than marked down: the `_index.md` files
+  `mos index sync` writes (read from the schema's own `generated_files` and
+  `frontmatter_contract.exempt_names` rather than copied out of them), every other name that is
+  somebody's navigation — `README.md`, `index.md`, `log.md`, `_log.md`, `changelog.md`,
+  `contributing.md`, `license.md`, `notes.md`, `todo.md` — held in a `NAV_FILES` set that stays
+  put when the schema moves, any document carrying the generated-by marker, and any whose
+  frontmatter `status` says
+  `archived`, `superseded`, `gap` or `placeholder` — which is the lever an operator has over
+  discovery, and the way a proof file that exists to record an absence stops being read as
+  proof. Everything else is scored on naming, placement and what its frontmatter claims about
+  itself, and only a candidate clearing a confidence floor may answer: a best candidate below
+  it is discarded rather than settled for, because being told you have answered a question you
+  have not is worse than being asked twice. Every rule is a fixed integer and the tie-break is
+  total, so the same tree always resolves the same way — no model, no randomness. A substantive
+  canonical file short-circuits the scan entirely and is never scored, so a schema-following
+  brain resolves exactly as it did before and costs nothing to check. All the unanswered fields
+  are resolved in one walk of the tree rather than one walk each; on a 9,000-file brain on a
+  mounted Windows filesystem that took the context check from 2.8s to 0.6s. The scan follows
+  nothing out of the repository — the two content trees are the only search roots, and a linked
+  directory resolving outside the repo is not descended into — so a `vault -> /elsewhere` or an
+  `up -> ..` left in the folder can no longer answer for the business with a file that is not
+  in it. A file reachable under several names (through a symlink beside its own folder) is
+  scored under all of them and reported under the best, so the answer no longer depends on
+  where a symlink sorts alphabetically. A scan that hits its budget reports `truncated`, and
+  the budget is spent on files that might be answers rather than on every file seen, so an
+  exported transcript dumped under `business/` cannot starve the walk before it reaches the
+  real one. Status field entries gain `source` (`canonical`, `discovered` or `missing`),
+  `discovered_path`, and `truncated`; `path` still means the canonical path, which is where
+  `mos context set` writes and what `mos validate` measures. `mos context show` reads the body
+  from wherever the answer really is and names that file in `answered_in`, so a discovered
+  field can never report answered with nothing to read — and `mos assist` grounds on the
+  operator's real words rather than an empty string. The dashboard shows the third state in
+  words: a "Found elsewhere" pill, the path it was found in, and a "N found elsewhere" count
+  beside the required badge. Documented in
+  [docs/json-output-contract.md](docs/json-output-contract.md#context-field).
+
 - **The app has a left sidebar with every brain, and one press switches between them.**
   Brains the operator has — created by the wizard, opened, attached, the folder the server
   was started in, or sitting in the first place (the desktop) — are listed by name in a
@@ -53,7 +100,7 @@ All notable changes to marketing-os are recorded here. Versions follow
   a `hide-machinery` CSS snippet, and three community plugins pre-installed and enabled -
   Iconize 2.14.7, Git File Explorer Colors 1.0.2 and Hide Empty Folders 1.0.0 - each with
   its LICENSE. Excalidraw is recommended as a one-click install instead of bundled, because
-  its AGPL-3.0 licence does not belong inside an MIT wheel (and it weighs 8 MB); the
+  its AGPL-3.0 licence does not belong inside an MIT wheel (and it weighs 8 megabytes); the
   frontmatter contract gains `exempt_suffixes` so `*.excalidraw.md` drawings never trip
   `mos validate --strict`. Folder emojis (💼 business, 📚 knowledge, 📣 campaigns,
   🎬 content, 📦 outputs, 📊 reporting, 🗄️ archive, plus the `business/` and `knowledge/`
@@ -132,6 +179,24 @@ All notable changes to marketing-os are recorded here. Versions follow
   written down in [docs/architecture.md](docs/architecture.md) rather than left to be discovered.
 
 ### Fixed
+
+- **One unreadable offer file no longer takes down `mos status`.** An offer document saved as
+  UTF-16, or round-tripped through a Windows editor, raised `UnicodeDecodeError` out of
+  `status`, `doctor`, `context show` and `context set` alike — every command that measures
+  context. Completeness now treats a file it cannot read as an unanswered one, everywhere,
+  and a leading byte-order mark is consumed rather than counted as content (which had been
+  hiding the whole frontmatter block, and with it every rule read from it).
+- **A page of `- TODO:` bullets no longer counts as an answer.** `substantive_text` skipped a
+  line starting `todo:` but not one starting `- todo:`, so the template convention this repo
+  uses for its own stubs was one bullet marker away from reporting a field complete. List,
+  numbered, quote and checkbox markers are stripped before the test.
+- **Folders excluded from the search are excluded in any spelling.** The exclusion list was
+  compared against raw directory names while every other name in the module went through the
+  same normaliser, so plural tolerance ran one way only: it helped a folder match a field and
+  never helped one get excluded. `archives/`, `Templates/` and `brain-dumps/` were all walked;
+  `example`, `sample`, `draft`, `scratch`, `old`, `backup`, `fixture`, `test`, `tmp` and `temp`
+  join the list. `normalise` also handles the `-ies` plural (`strategies`, `case-studies`,
+  `identities`) and leaves a word ending in a doubled `s` alone.
 
 - **A Windows-spelled path can no longer put a brain inside the app's own folder.** Typed
   into the wizard's exact-location field under WSL, `C:\Users\you\Desktop\foo` reached
