@@ -7,8 +7,9 @@ writing.
 
 ## Install
 
-The engine is not published yet: there is no `marketing-os` on PyPI and no release tag.
-A source checkout is the install.
+marketing-os has never been published. There is no release on PyPI and no version tag in
+this repository, so `pipx install marketing-os` has nothing to resolve and fails. A source
+checkout is the install:
 
 ```bash
 git clone https://github.com/reapzyau/marketing-os
@@ -18,8 +19,20 @@ mos install --runtime all --plan
 mos install --runtime all --yes
 ```
 
-Once it ships, `pipx install marketing-os` becomes the front door. Until then that
-command fails, because there is nothing on PyPI to resolve.
+That route stays supported after the first release, so nothing above is throwaway.
+
+Once a release lands, `pipx install marketing-os` becomes the one-line front door and
+nothing else in this section changes. Getting there takes one push of a `v0.2.0` tag plus a
+one-time trusted-publishing setup on PyPI that only the account owner can do; both are
+written down in [docs/releasing.md](docs/releasing.md). Ask PyPI whether it has happened
+rather than trusting this file to have been updated:
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' https://pypi.org/pypi/marketing-os/json
+```
+
+`404` is still unpublished, and the checkout above is the only way in. `200` means the
+release landed and `pipx install marketing-os` works.
 
 `mos install` copies the bundled skills into `~/.claude/skills` and `~/.agents/skills`
 and records what it wrote in `~/.marketing-os/runtime-manifest.json`. It wires your home
@@ -29,9 +42,10 @@ it records the marker and leaves the app to `mos ui`. Either way the `ui-opened`
 `~/.marketing-os` is written before the attempt, so the open is tried once and never
 retried, and `--no-ui` skips it.
 
-`mos --version` prints `mos 0.2.0` — the version in `pyproject.toml`, not a released one.
-The local app and the merge of `setup` into `mos onboard` are listed under
-`## [Unreleased]` in [CHANGELOG.md](CHANGELOG.md).
+`mos --version` prints `mos 0.2.0`. That is the version in `pyproject.toml`; until a tag is
+pushed it is not a released one, and a tag that disagrees with it fails the release build
+rather than publishing the wrong number. The local app and the merge of `setup` into
+`mos onboard` are listed under `## [Unreleased]` in [CHANGELOG.md](CHANGELOG.md).
 
 ## Create a brain
 
@@ -153,3 +167,6 @@ when `--cov` is passed, so a bare `pytest` cannot fail the way CI does. The whee
 reads the wheel `python -m build` just produced, so the build step is not optional
 either, and the clean-language gate is a gate. Skipping any of them locally only moves
 the failure to the push.
+
+Pushing a `v*` tag runs the same gates again and then publishes to PyPI —
+[docs/releasing.md](docs/releasing.md) covers the setup that has to happen first.

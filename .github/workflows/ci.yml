@@ -1,8 +1,13 @@
 name: ci
 
 on:
+  # Branches only. A tag push runs these same gates through the release
+  # workflow, which calls this file rather than copying it, so an unfiltered
+  # `push` here would run the whole matrix twice for every release.
   push:
+    branches: ["**"]
   pull_request:
+  workflow_call:
 
 jobs:
   test:

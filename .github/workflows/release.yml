@@ -1,0 +1,78 @@
+name: release
+
+# Publishes to PyPI when a version tag is pushed, using trusted publishing:
+# GitHub mints a short-lived OIDC token for this job and PyPI exchanges it for
+# an upload token. No API token is stored in this repository and no person
+# handles one. PyPI matches that token against four facts — the owner, the
+# repository name, this file's name, and the `pypi` environment below — so
+# renaming any of them stops publishing until the PyPI publisher is updated to
+# match. See docs/releasing.md.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions: {}
+
+jobs:
+  # The CI gates, called rather than copied: the same lint, tests, clean-language
+  # check, build and wheel smoke that every push runs, across three operating
+  # systems and both supported Python versions. A PyPI upload can never be
+  # replaced or re-uploaded, so it waits for all of them.
+  ci:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/ci.yml
+
+  # Builds the exact artifacts that will be uploaded, once, and smokes those
+  # bytes rather than a different job's copy of them. `build` produces the sdist
+  # and then builds the wheel from that sdist, so the two are proven consistent.
+  build:
+    needs: ci
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: python -m pip install -e ".[dev]"
+      - run: python -m build
+      # The version is read from pyproject.toml, never from the tag, so a tag
+      # that disagrees would silently publish the older number — and PyPI never
+      # lets that number be reused. Fail before anything is uploaded.
+      - name: The tag must name the version being published
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if [ ! -f "dist/marketing_os-${version}-py3-none-any.whl" ] \
+            || [ ! -f "dist/marketing_os-${version}.tar.gz" ] \
+            || [ "$(ls dist | wc -l)" -ne 2 ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match the built distributions."
+            echo "Built: $(ls dist | tr '\n' ' ')"
+            echo "Set version in pyproject.toml to ${version}, or delete the tag and retag."
+            exit 1
+          fi
+      - run: python scripts/smoke_wheel.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  # Runs no project code: it downloads the artifacts the build job proved and
+  # hands them to PyPI. The OIDC token is scoped to this job alone.
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/marketing-os
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1

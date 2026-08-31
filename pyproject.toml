@@ -15,14 +15,28 @@ keywords = ["marketing", "cli", "codex", "claude-code", "agent-skills", "ai-brai
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Intended Audience :: End Users/Desktop",
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Topic :: Office/Business",
+  "Topic :: Utilities",
+  "Typing :: Typed",
 ]
 dependencies = []
+
+# Every URL below was checked with a live request before it was written here.
+# The canonical repository is `marketing-os`; `marketing-os-next` is an old name
+# that GitHub 301-redirects, so it is not used in published metadata.
+[project.urls]
+Homepage = "https://github.com/reapzyau/marketing-os"
+Repository = "https://github.com/reapzyau/marketing-os"
+Issues = "https://github.com/reapzyau/marketing-os/issues"
+Changelog = "https://github.com/reapzyau/marketing-os/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = [

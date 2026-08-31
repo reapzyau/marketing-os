@@ -11,8 +11,8 @@ the same parser, so a brain built one way is identical to a brain built the othe
 
 ## 1. Install the CLI
 
-The engine is not published yet: there is no `marketing-os` on PyPI and no release tag, so
-`pipx install marketing-os` fails with nothing to resolve. Install from a source checkout:
+The engine has never been published: there is no `marketing-os` on PyPI and no release tag,
+so `pipx install marketing-os` fails with nothing to resolve. Install from a source checkout:
 
 ```bash
 git clone https://github.com/reapzyau/marketing-os
@@ -27,8 +27,20 @@ mos --version
 ```
 
 You should see a line like `mos 0.2.0` — the version in `pyproject.toml`, not a released one.
-Once the engine ships, `pipx install marketing-os` becomes the one-line install and this
-section gets shorter.
+
+Once the first release lands, `pipx install marketing-os` replaces those three lines and the
+rest of this guide is unchanged: pipx puts the same `mos` on your path, and every command
+below behaves identically. It is not a matter of time passing — it takes a `v0.2.0` tag
+pushed to this repository plus a one-time trusted-publishing setup on PyPI, both of which
+are written down in [releasing.md](releasing.md). Ask PyPI whether that has happened rather
+than trusting this page to be current:
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' https://pypi.org/pypi/marketing-os/json
+```
+
+`404` means keep reading here. `200` means the release landed, and `pipx install marketing-os`
+is the shorter way in.
 
 Because you are on the checkout, every command in this guide exists. `mos ui`, `mos attach`
 and `mos assist` are the newest three; if `mos ui --help` answers `invalid choice: 'ui'` you
