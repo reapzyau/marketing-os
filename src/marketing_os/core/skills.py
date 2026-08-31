@@ -3,9 +3,11 @@ from __future__ import annotations
 import hashlib
 import json
 import shutil
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from marketing_os.core.parallel import pmap
 from marketing_os.core.results import finding
 from marketing_os.core.schema import skills_root
 
@@ -20,12 +22,30 @@ def normalize_runtimes(runtime: str) -> tuple[str, ...]:
     raise ValueError("runtime must be one of: claude, codex, all")
 
 
+@lru_cache(maxsize=1)
 def bundled_skills() -> tuple[str, ...]:
+    """The skills this distribution ships, named by the packaged manifest.
+
+    Read once per process: the manifest is inside the installed distribution and cannot
+    change under a running one. The tuple is immutable, so one shared answer is safe.
+    """
     payload = json.loads((skills_root() / "manifest.json").read_text(encoding="utf-8"))
     names = payload.get("skills", [])
     if not isinstance(names, list) or not all(isinstance(name, str) for name in names):
         raise ValueError("invalid packaged skill manifest")
     return tuple(names)
+
+
+@lru_cache(maxsize=64)
+def source_hash(name: str) -> str:
+    """The digest of one packaged skill, computed once per process.
+
+    ``inspect_runtimes`` asks what every skill ought to hash to once per runtime, and
+    ``mos doctor`` used to ask the whole question twice, so the same nine read-only
+    directories inside the installed distribution were being hashed thirty-six times for
+    one dashboard. They are the same nine directories every time.
+    """
+    return tree_hash(skills_root() / name)
 
 
 def tree_hash(path: Path) -> str:
@@ -85,7 +105,7 @@ def plan_sync(
         for name in bundled_skills():
             source = skills_root() / name
             destination = target / RUNTIME_DIRS[runtime_name] / name
-            expected = tree_hash(source)
+            expected = source_hash(name)
             current = tree_hash(destination)
             previous = runtime_record.get(name, "")
             if current == expected:
@@ -143,14 +163,31 @@ def apply_sync(actions: list[dict[str, str]], manifest_path: Path) -> None:
 
 
 def inspect_runtimes(root: Path) -> dict[str, dict[str, Any]]:
+    """What each runtime's skill directory holds, against what this distribution ships.
+
+    Every installed skill is hashed at the same time as the others. There are eighteen of
+    them across the two runtimes, each one a small directory read on a filesystem where the
+    read is the cost, and asking for them one after another was a third of what a status
+    check spent. The answers are put back against the pair that asked for them, so the
+    envelope is the same envelope in the same order.
+    """
+    names = bundled_skills()
+    pairs = [(runtime, name) for runtime in RUNTIME_DIRS for name in names]
+    digests = dict(
+        zip(
+            pairs,
+            pmap(lambda pair: tree_hash(root / RUNTIME_DIRS[pair[0]] / pair[1]), pairs),
+            strict=True,
+        )
+    )
     result: dict[str, dict[str, Any]] = {}
     for runtime_name, relative in RUNTIME_DIRS.items():
         missing: list[str] = []
         mismatched: list[str] = []
         hashes: dict[str, str] = {}
-        for name in bundled_skills():
-            expected = tree_hash(skills_root() / name)
-            current = tree_hash(root / relative / name)
+        for name in names:
+            expected = source_hash(name)
+            current = digests[(runtime_name, name)]
             hashes[name] = current
             if not current:
                 missing.append(name)

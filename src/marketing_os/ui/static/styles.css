@@ -1905,6 +1905,11 @@ h3[tabindex="-1"]:focus-visible {
   overflow: hidden;
 }
 
+/* The line under a shortened list, saying how many rows are not on it. */
+.rows + .btn-row {
+  margin-top: 14px;
+}
+
 .row {
   display: flex;
   align-items: flex-start;

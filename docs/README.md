@@ -29,6 +29,9 @@ straight to the document you need.
   [agent-runtime-contract.md](agent-runtime-contract.md) to understand how the CLI and
   agents interoperate; see [../decisions/README.md](../decisions/README.md) for how
   directional choices are recorded.
+- **Shipping the engine** - [releasing.md](releasing.md) is the runbook for publishing to
+  PyPI: the one-time trusted-publishing setup only the account owner can do, the commands
+  that cut a release, and how to prove the published wheel can still scaffold a brain.
 
 ## Reference documents
 
@@ -43,6 +46,7 @@ straight to the document you need.
 | [business-repo.md](business-repo.md) | The generated brain's structure, memory layers, and file lifecycle rules. |
 | [knowledge-graph.md](knowledge-graph.md) | Why the navigation layer ships in the CLI and the model-backed graph does not, with the measurements behind that split. |
 | [troubleshooting.md](troubleshooting.md) | Per-state remedies keyed to `mos status` and `mos doctor` output. |
+| [releasing.md](releasing.md) | How a version tag becomes a PyPI release: the trusted-publishing setup, the tag commands, and the post-publish verification. |
 | [../decisions/README.md](../decisions/README.md) | Convention for recording directional and architectural decisions. |
 
 Design plans live in [`plans/`](plans/). They record what a piece of work set out to do at

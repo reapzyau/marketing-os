@@ -316,3 +316,138 @@ def test_a_scan_cut_short_by_its_budget_says_so_in_the_envelope(
     fields = status_repo(root)["context"]["fields"]
 
     assert any(entry.get("truncated") for entry in fields.values())
+
+
+def _material_only(root: Path) -> None:
+    """A folder that is nobody's brain yet and already holds the answers.
+
+    The shape an operator points onboarding at on day one: real writing, filed the way they
+    file things, with no ``.mos/config.yaml`` anywhere near it. Brand lands on its canonical
+    path and voice and audience do not, so one folder exercises both kinds of answer.
+    """
+    (root / "business/brand").mkdir(parents=True)
+    (root / "business/brand/brand.md").write_text(
+        "# Brand\n\n"
+        "The brain for marketers who would rather install a working system than read another "
+        "explanation of one.\n",
+        encoding="utf-8",
+    )
+    (root / "reference/core").mkdir(parents=True)
+    (root / "reference/core/voice.md").write_text(
+        "# Voice\n\n"
+        "Precision-led and evidence-based. Every sentence earns its place, and nothing is "
+        "claimed that cannot be shown.\n",
+        encoding="utf-8",
+    )
+    (root / "reference/core/audience.md").write_text(
+        "# Audience\n\n"
+        "Marketers running their own delivery who have tried the tools, kept none of them, "
+        "and want one system that holds.\n",
+        encoding="utf-8",
+    )
+
+
+def test_a_folder_that_is_not_a_brain_reports_the_context_it_already_holds(
+    tmp_path: Path,
+) -> None:
+    """Discovery has to answer before the folder is a brain, which is when onboarding asks.
+
+    ``status_repo`` used to answer the config-less case from a literal, so a folder full of
+    the operator's own writing reported the same four missing fields as an empty one — and
+    onboarding then asked, from scratch, for what was already written down.
+    """
+    root = tmp_path / "material"
+    root.mkdir()
+    _material_only(root)
+
+    status = status_repo(root)
+
+    # Nothing about the verdict on the folder itself moves: it is still not a brain.
+    assert status["repo_state"] == "absent"
+    assert status["ok"] is False
+    assert status["next_action"]["id"] == "run-setup"
+    # What moves is that the answers it already holds are now reported.
+    assert status["context"]["missing"] == ["offer"]
+    fields = status["context"]["fields"]
+    assert fields["brand"]["source"] == "canonical"
+    assert fields["voice"]["source"] == "discovered"
+    assert fields["voice"]["discovered_path"] == "reference/core/voice.md"
+    assert fields["audience"]["discovered_path"] == "reference/core/audience.md"
+    # The canonical path keeps its meaning even here: it is where an answer would be written.
+    assert fields["voice"]["path"] == "business/brand/voice.md"
+
+
+def test_an_empty_folder_that_is_not_a_brain_still_reports_nothing_found(tmp_path: Path) -> None:
+    """The case that must not change. An empty folder had no answers and still has none."""
+    root = tmp_path / "blank"
+    root.mkdir()
+
+    status = status_repo(root)
+
+    assert status["repo_state"] == "absent"
+    assert status["ok"] is False
+    assert status["next_action"]["id"] == "run-setup"
+    assert status["context"]["ready"] is False
+    assert status["context"]["missing"] == ["brand", "voice", "audience", "offer"]
+    assert [entry["source"] for entry in status["context"]["fields"].values()] == ["missing"] * 6
+
+
+def test_a_placeholder_in_a_folder_that_is_not_a_brain_never_answers_for_a_field(
+    tmp_path: Path,
+) -> None:
+    """Reporting a stub as an answer is worse than the question it saves.
+
+    Telling an operator their brand is documented when the file says ``TODO`` is the failure
+    this whole path exists to avoid, and it has shipped once already. Both shapes it takes
+    are here: a file of unanswered prompts, and a folder map that says the folder is empty.
+    """
+    root = tmp_path / "material"
+    (root / "business/brand").mkdir(parents=True)
+    (root / "business/brand/brand.md").write_text(
+        "# Brand\n\n- TODO: what we stand for\n- TODO: who we are not for\n",
+        encoding="utf-8",
+    )
+    (root / "business/brand/voice.md").write_text(
+        "# Voice\n\nTODO: describe the tone, then list the words we never use.\n",
+        encoding="utf-8",
+    )
+    (root / "business/audience").mkdir(parents=True)
+    (root / "business/audience/README.md").write_text(
+        "# audience\n\nOne file per segment in here. Nothing has been written yet — this "
+        "folder is a map, not an answer, and it stays that way until someone fills it.\n",
+        encoding="utf-8",
+    )
+
+    context = status_repo(root)["context"]
+
+    assert context["ready"] is False
+    assert context["missing"] == ["brand", "voice", "audience", "offer"]
+    assert [entry["source"] for entry in context["fields"].values()] == ["missing"] * 6
+
+
+def test_doctor_can_call_context_ready_on_a_folder_that_is_not_a_brain_but_never_healthy(
+    tmp_path: Path,
+) -> None:
+    """The one visible consequence, pinned.
+
+    ``checks.context_ready`` now answers for a folder with no config, and it answers true when
+    the folder really does hold all four. That is accurate rather than generous, and ``ok``
+    does not read it: an unbuilt brain is not a healthy one no matter how much writing sits
+    in the folder.
+    """
+    root = tmp_path / "material"
+    root.mkdir()
+    _material_only(root)
+    (root / "business/offers").mkdir(parents=True)
+    (root / "business/offers/offer.md").write_text(
+        "# What we sell\n\n"
+        "A six week build-along for marketers who want the system installed rather than "
+        "explained, at one fixed price.\n",
+        encoding="utf-8",
+    )
+
+    report = doctor_repo(root)
+
+    assert report["checks"]["context_ready"] is True
+    assert report["ok"] is False
+    assert report["next_action"]["id"] == "repair-health"

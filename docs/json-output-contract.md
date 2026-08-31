@@ -92,6 +92,13 @@ context field. `mos context show` reports the same facts, one per entry in its o
 | `files` | array of string | `offer` only: every offer document the brain holds. |
 | `truncated` | boolean | Present, and always `true`, only when the search hit its budget before finishing. A `missing` verdict beside it means "not found in what was looked at", not "not there". |
 
+`context` is measured for whatever folder is pointed at, including one that is not a brain:
+a directory with no `.mos/config.yaml` still reports the fields it already answers, which is
+what lets onboarding stop asking for what is already written down. `repo_state` remains the
+only gate on whether the folder is a brain, so `context.ready` can be `true` beside
+`repo_state: "absent"` — the answers are there and the brain is not built yet. Read the two
+together; neither one answers the other's question.
+
 Read the answer from `discovered_path` when it is present and from `path` otherwise. `mos
 context show` already does that for you: its `body` carries the words that made `complete`
 true wherever those words live, and `answered_in` names the file they came from.

@@ -107,7 +107,13 @@ The engine lives under `src/marketing_os/`:
   contract, with `--strict` promoting contract warnings to errors.
 - `core/catalog.py` — `mos index build`; parses frontmatter and links across every document
   and writes `.mos/local/catalog.json`. The frontmatter parser and `coverage` are shared by
-  the sensors, the hierarchy generator, and `query`.
+  the sensors, the hierarchy generator, and `query`. The walk prunes skipped folders as it
+  descends rather than filtering afterwards, reads each level's directories together, and
+  keeps every document's size and modification time in `.mos/local/scan-cache.json` so a
+  later run opens only the documents that have actually changed. That is per-file
+  invalidation and nothing coarser: a folder's modification time does not move when a file
+  inside it is edited, so a cache keyed on folders would show an operator yesterday's answer
+  to a question they just answered.
 - `core/index.py` — `mos index sync` and `mos index status`; generates the three-level
   `_index.md` hierarchy from the catalogue, with a size-bounded explode threshold and a
   do-not-overwrite rule for hand-written indexes.
@@ -166,9 +172,11 @@ The engine lives under `src/marketing_os/`:
   renames it over the target, so a failed write leaves the original exactly as it was.
   Generated machine-local state (`.mos/local/catalog.json`, the runtime manifests, the app's
   `ui.json`) stays on `write_text` deliberately: those readers already treat an unreadable
-  file as absent, and the next run writes a fresh one. `brains.json` is the exception among
-  them, and goes through `atomic_write`, because it records something no later run can
-  rebuild — which brains the operator has, and when each was last opened.
+  file as absent, and the next run writes a fresh one. Two exceptions go through
+  `atomic_write`: `brains.json`, because it records something no later run can rebuild —
+  which brains the operator has, and when each was last opened — and `scan-cache.json`,
+  because the local app answers state requests for one brain concurrently, so two writers
+  meeting inside one `write_text` is a normal event there rather than a crash.
 - `assets/` — the packaged data: `schema.json` (the canonical structure), the
   `business-template/` scaffold, the `mode-overlays/` per-mode trees, and the `skills/` source
   of truth.
@@ -213,6 +221,16 @@ platform it declines with `ui-needs-foreground` rather than holding the install 
 The API surface is small on purpose: three GET routes (the page, `/static/*`, and
 `/api/state`) and four POST routes (`/api/run`, `/api/browse`, `/api/pick-folder`,
 `/api/brains`). Everything else answers 404 as an envelope.
+
+`/api/state` is the page's own shape and is the one place an envelope is trimmed. It carries
+the first two hundred findings, errors before warnings, with `findings_total` and
+`findings_counts` taken from the whole list, because a brain mid-migration can answer with
+thousands and the page states the count rather than building a row for each; and the doctor
+envelope it carries keeps its `checks` and drops the `findings` and `runtimes` that are the
+status envelope's, item for item. Both envelopes are computed inside one
+`core.status.reuse()` block, so `doctor` does not re-walk the brain `status` has just walked.
+The envelopes `/api/run` returns, and everything the terminal prints, are the contract and
+are never trimmed.
 
 `mos ui` itself takes no `--plan`/`--yes` gate, because starting a server writes nothing to a
 brain — it does write machine-local state, covered under [Local state](#local-state). Commands
@@ -280,7 +298,8 @@ manifest so a later run can tell a stale generated copy from a hand-authored one
 ## Local state
 
 Machine-local runtime state lives below `.mos/local/` inside a brain and is never committed;
-the project-level runtime manifest and the document catalogue are written there.
+the project-level runtime manifest, the document catalogue, and the scan cache that lets a
+status check skip re-reading unchanged documents are written there.
 
 The rest lives in `~/.marketing-os/`, outside every brain, because the local app has to work
 before any brain exists:

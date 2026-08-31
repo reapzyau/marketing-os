@@ -6,10 +6,13 @@ killed mid-write — lands after the document is already empty, and the operator
 the tool was asked to edit rather than destroy.
 
 ``atomic_write`` is the one implementation every module that rewrites an operator's
-document uses instead of ``write_text``. Generated machine-local state (the catalogue
-cache, the runtime manifest, the app's pid file) is left on ``write_text`` deliberately:
-each of those readers already treats an unreadable file as absent, and the next run
-writes a fresh one, so there is nothing there to lose.
+document uses instead of ``write_text``. Most generated machine-local state (the
+catalogue, the runtime manifest, the app's pid file) is left on ``write_text``
+deliberately: each of those readers already treats an unreadable file as absent, and the
+next run writes a fresh one, so there is nothing there to lose. The scan cache is the
+exception, because the local app answers state requests for one brain concurrently and
+two writers meeting inside one ``write_text`` is a normal event there rather than a
+crash.
 """
 
 from __future__ import annotations

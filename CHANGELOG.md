@@ -229,6 +229,25 @@ All notable changes to marketing-os are recorded here. Versions follow
 
 ### Changed
 
+- **Switching brains in the local app is roughly eighteen times faster.** On a real brain of
+  1,556 markdown documents on a mounted Windows drive, `GET /api/state` went from 28.1
+  seconds and 1,370,838 bytes to 1.6 seconds and 59,161. Nothing about what it reports
+  changed: the 2,561 findings, their order, and all six resolved context fields are identical
+  before and after. Four things did it. Filesystem work is now overlapped
+  (`marketing_os.core.parallel`), because on a mount every cost is round-trip latency rather
+  than computation — walking 606 folders falls from 2.97 seconds to 0.41 that way. The
+  packaged schema is parsed once per process instead of 6,105 times per request. The
+  catalogue is built once per validation pass instead of twice, and is cached per document in
+  `.mos/local/scan-cache.json` against each file's size and modification time, so an
+  unchanged document is never reopened and an edited one always is. And `mos doctor` inside
+  the app's state request reuses the status it was just given instead of re-walking the brain
+  (`core.status.reuse`), which was half the request on its own. `mos status`, `mos validate`
+  and `mos doctor` in the terminal are faster for the same reasons and print exactly what
+  they printed before.
+- `/api/state` — the page's own shape, not the CLI contract — now carries the first two
+  hundred findings with the true `findings_total` and `findings_counts` beside them, errors
+  first, and drops the doctor findings and runtimes that duplicate the status envelope's. The
+  dashboard states the checker's real count and says how many rows it is not listing.
 - Merged the former `setup` subcommand into `mos onboard`. Onboard is now the single command to create or complete a brain (new or existing) — scaffold, git, the context interview (now including strategy), and agency client registration. The `setup` subcommand and its bundled skill are retired; use `mos onboard` and `/mos-onboard` going forward.
 
 ## [0.2.0] - 2026-08-20 — Navigation layer

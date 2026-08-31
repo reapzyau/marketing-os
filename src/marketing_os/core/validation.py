@@ -4,7 +4,9 @@ import re
 from pathlib import Path
 from typing import Any
 
+from marketing_os.core.catalog import build_catalog
 from marketing_os.core.graphlint import CODES, contract_findings
+from marketing_os.core.parallel import gather
 from marketing_os.core.results import envelope, finding, next_action
 from marketing_os.core.schema import load_schema, read_config, repo_mode
 
@@ -142,6 +144,31 @@ def validation_findings(root: Path) -> list[dict[str, str]]:
                     )
                 )
 
+    # Two walks of two different parts of the brain: the shape of its folders, and the
+    # contract inside its documents. Neither needs the other's answer, and both are almost
+    # entirely spent waiting, so they run together. The findings are put back in the order
+    # they have always come in — structure, then contract — because a caller comparing two
+    # validation runs must not see them shuffle.
+    structure, contract = gather(
+        lambda: _structure_findings(root, schema),
+        # The catalogue is built here and handed down. ``contract_findings`` has always
+        # taken one and has always built its own when it was not given one, which meant
+        # every validation pass read all fifteen hundred documents a second time for an
+        # identical answer: the seam existed, nobody used it.
+        lambda: contract_findings(root, build_catalog(root)),
+    )
+    findings.extend(structure)
+    findings.extend(contract)
+    return findings
+
+
+def _structure_findings(root: Path, schema: dict[str, Any]) -> list[dict[str, str]]:
+    """Everything the brain's folders say about themselves: what is missing, what is odd.
+
+    Split out of ``validation_findings`` so it can be walked alongside the catalogue rather
+    than before it. It reads directories only; nothing here opens a document.
+    """
+    findings: list[dict[str, str]] = []
     for relative in schema["required_directories"]:
         if not (root / relative).is_dir():
             findings.append(
@@ -179,7 +206,6 @@ def validation_findings(root: Path) -> list[dict[str, str]]:
     ):
         findings.extend(_check_year_month_dated(root, relative))
     findings.extend(_check_reporting(root))
-    findings.extend(contract_findings(root))
     return findings
 
 

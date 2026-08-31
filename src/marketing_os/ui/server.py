@@ -20,6 +20,8 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, unquote, urlparse, urlsplit
 
+from marketing_os.core import status as core_status
+from marketing_os.core.parallel import gather
 from marketing_os.core.results import envelope, finding, next_action
 from marketing_os.core.schema import find_root, read_config
 from marketing_os.ui import registry
@@ -42,6 +44,15 @@ TOKEN_HEADER = "X-MOS-Token"
 TOKEN_PLACEHOLDER = "__MOS_SESSION_TOKEN__"
 MAX_BODY = 256 * 1024
 STATE_SCHEMA = "mos.ui-app-state.v1"
+
+#: How many findings ``/api/state`` carries. The dashboard's findings card is a list an
+#: operator reads, and a brain mid-migration can hold thousands: one real one answered
+#: with 2,561, which was 648 kilobytes of the response and some twenty-three thousand
+#: elements built into the page before it could paint. The count is never capped — the
+#: card states the true total and the true count of each severity, both taken from the
+#: whole list before it is cut — and the terminal's ``mos validate`` still prints every
+#: one. This is what the page carries, not what the checker found.
+STATE_FINDING_LIMIT = 200
 
 CONTENT_TYPES = {
     ".css": "text/css; charset=utf-8",
@@ -87,6 +98,43 @@ def error_envelope(code: str, message: str, *, root: Path | None = None) -> dict
         port=None,
         pid=os.getpid(),
     )
+
+
+def _state_findings(result: dict[str, Any], limit: int) -> dict[str, Any]:
+    """One envelope with its findings cut to ``limit``, and the true totals beside them.
+
+    ``/api/state`` is the page's own shape and may be trimmed; the envelopes ``/api/run``
+    returns, and everything the terminal prints, are the contract and are never touched.
+
+    ``findings_total`` and ``findings_counts`` are taken from the whole list before
+    anything is dropped, so the card's badge and its "and N more" line state what the
+    checker actually found. Errors are kept ahead of warnings because they are the ones
+    worth reading first and the ones a cut must never be allowed to hide.
+    """
+    findings = result.get("findings")
+    if not isinstance(findings, list):
+        return result
+    counts: dict[str, int] = {}
+    for item in findings:
+        severity = str(item.get("severity", "")) if isinstance(item, dict) else ""
+        counts[severity] = counts.get(severity, 0) + 1
+    if len(findings) <= limit:
+        shown = findings
+    else:
+        errors = [item for item in findings if _severity(item) == "error"]
+        rest = [item for item in findings if _severity(item) != "error"]
+        shown = (errors + rest)[:limit]
+    return {
+        **result,
+        "findings": shown,
+        "findings_total": len(findings),
+        "findings_counts": counts,
+        "findings_capped": len(shown) < len(findings),
+    }
+
+
+def _severity(item: Any) -> str:
+    return str(item.get("severity", "")) if isinstance(item, dict) else ""
 
 
 class UiServer(ThreadingHTTPServer):
@@ -484,17 +532,37 @@ class UiHandler(BaseHTTPRequestHandler):
         with contextlib.suppress(Exception):
             registry.remember(root)
 
-    def _app_state(self, root: Path | None = None) -> dict[str, Any]:
+    def _brain_health(self, root: Path) -> tuple[dict[str, Any], dict[str, Any]]:
+        """The status and doctor envelopes for one brain, computed once between them.
+
+        Both still go through ``run_argv``: same parser, same handlers, same envelopes the
+        terminal prints. The block around them is what stops ``doctor`` re-walking the
+        brain that ``status`` has just finished walking — see ``core.status.reuse``.
+
+        Reads, so deliberately outside ``server.lock``: state must still answer while an
+        install holds it.
+        """
         from marketing_os.cli.main import run_argv
 
+        with core_status.reuse():
+            status = run_argv(["status", str(root)])
+            doctor = run_argv(["doctor", str(root)])
+        return status, doctor
+
+    def _app_state(self, root: Path | None = None) -> dict[str, Any]:
         self._register_root()
         root = self.server.root if root is None else root
         config = read_config(root)
         detected = find_root(root)
-        # Reads, so unlocked: state must still answer while an install holds the lock.
-        status = run_argv(["status", str(root)])
-        doctor = run_argv(["doctor", str(root)])
         places = suggested_places()
+        # Three separate waits on three separate parts of the filesystem: this brain, the
+        # desktop the brain list scans, and whatever the picker probe shells out to. Asked
+        # at the same time, because none of them is waiting on any of the others.
+        (status, doctor), brains, picker = gather(
+            lambda: self._brain_health(root),
+            lambda: registry.known_brains(places),
+            picker_available,
+        )
         return {
             "schema": STATE_SCHEMA,
             "cwd": str(Path.cwd()),
@@ -503,19 +571,28 @@ class UiHandler(BaseHTTPRequestHandler):
             "places": places,
             # Every brain the operator has: the registry plus a scan of the first place
             # (the desktop, or home without one) — the one Desktop scan a state request does.
-            "brains": registry.known_brains(places),
+            "brains": brains,
             "brain_root": str(detected) if detected else None,
             "is_brain": config is not None,
             "attachable": config is None and legacy_brain(root) is not None,
-            "picker": picker_available(),
+            "picker": picker,
             "business_name": (config or {}).get("business_name"),
             "mode": (config or {}).get("mode"),
             "port": self.server.port,
             "url": self.server.url,
             "commands": list(allowlist()),
             "command_specs": describe(),
-            "status": status,
-            "doctor": doctor,
+            "status": _state_findings(status, STATE_FINDING_LIMIT),
+            # The page reads two booleans out of this — ``checks.structure`` and
+            # ``checks.runtime_wiring`` — and doctor's own ``findings`` and ``runtimes``
+            # are the status envelope's, item for item. Sending them again put the same
+            # 648 kilobyte list in the response twice, so this carries the checks and the
+            # counts and leaves the duplicates behind.
+            "doctor": {
+                key: value
+                for key, value in _state_findings(doctor, 0).items()
+                if key != "runtimes"
+            },
         }
 
 

@@ -6,6 +6,13 @@
  *   - GET  /api/state  -> cwd, root, is_brain, command_specs, status + doctor envelopes,
  *                         and `brains`: every brain the operator has; ?path= asks about
  *                         another root, which is how switching brains works
+ *                         Its two envelopes are trimmed for the page: `status.findings`
+ *                         carries the first few hundred, errors first, with the true
+ *                         numbers in `findings_total` and `findings_counts`; doctor keeps
+ *                         its `checks` and drops the findings and runtimes that are the
+ *                         status envelope's, item for item. /api/run is never trimmed, so
+ *                         read counts through findingsTotal() and severityCount() and
+ *                         both shapes answer the same.
  *   - POST /api/brains -> {op: remember|forget, path} -> {brains}
  *   - POST /api/run    -> {command, args} -> {envelope, command_line}
  *   - POST /api/browse -> {path} -> one folder: its parent, subfolders, brain if any
@@ -214,6 +221,23 @@
     return findingsOf(envelope).filter(function (item) {
       return item && item.severity === severity;
     });
+  }
+
+  /* How many findings there really are, which is not always how many arrived. The state
+   * request carries a few hundred rows and states its totals separately, so the page can
+   * be built without thousands of elements in it while still saying what the checker
+   * found. A /api/run envelope carries every finding and no totals, and there the list is
+   * the count. Both are read through these two, so no number on screen depends on which
+   * request a status envelope came from. */
+  function findingsTotal(envelope) {
+    var total = envelope && envelope.findings_total;
+    return typeof total === "number" ? total : findingsOf(envelope).length;
+  }
+
+  function severityCount(envelope, severity) {
+    var counts = envelope && envelope.findings_counts;
+    if (counts && typeof counts[severity] === "number") return counts[severity];
+    return bySeverity(envelope, severity).length;
   }
 
   /* ================================================================== words */
@@ -3900,7 +3924,7 @@
    * made a caption apologise for the duplication in body text. */
   function healthGrid(status, doctor) {
     var checks = (doctor && doctor.checks) || {};
-    var errors = bySeverity(status, "error");
+    var errors = severityCount(status, "error");
     var runtimes = status.runtimes || {};
     var notReady = Object.keys(runtimes).filter(function (key) {
       return !runtimes[key].ready;
@@ -3912,7 +3936,7 @@
         "Structure",
         checks.structure !== false
           ? "Every folder and file is where the schema expects it."
-          : plural(errors.length, "thing") + " out of place."
+          : plural(errors, "thing") + " out of place."
       ),
       tile(
         checks.runtime_wiring === true,
@@ -4170,6 +4194,8 @@
 
   function findingsCard(status) {
     var findings = findingsOf(status);
+    var total = findingsTotal(status);
+    var withheld = total - findings.length;
     // A generated icon button loses its label below 640px unless it carries one itself.
     var recheck = el("button", {
       class: "btn btn--ghost btn--icon",
@@ -4190,10 +4216,27 @@
           el("h2", { class: "card__title", text: "Everything the checker found" }),
           el("p", {
             class: "card__sub",
-            text: "Straight from the checker. Nothing added, nothing hidden.",
+            // The count is the checker's own, always. Only the rows are ever shortened,
+            // and when they are this says so rather than leaving a shorter list to be
+            // read as a shorter answer.
+            text: withheld
+              ? "Straight from the checker. It found " +
+                plural(total, "thing") +
+                "; the first " +
+                findings.length +
+                " are listed here, errors before warnings."
+              : "Straight from the checker. Nothing added, nothing hidden.",
           }),
         ]),
-        el("span", { class: "card__end" }, [recheck]),
+        el("span", { class: "card__end" }, [
+          el("span", { class: "pill-row" }, [
+            el("span", {
+              class: severityCount(status, "error") ? "pill pill--err" : "pill",
+              text: plural(total, "finding"),
+            }),
+            recheck,
+          ]),
+        ]),
       ]),
     ]);
     if (!findings.length) {
@@ -4206,6 +4249,28 @@
       );
     } else {
       add(card, findingRows(findings));
+      if (withheld) {
+        add(
+          card,
+          el("div", { class: "btn-row" }, [
+            el("p", {
+              class: "card__sub",
+              text: plural(withheld, "finding") + " not listed here.",
+            }),
+            el("button", {
+              class: "btn btn--secondary",
+              type: "button",
+              text: "Open the checker",
+              on: {
+                click: function () {
+                  selectCommand("validate");
+                  setView("commands");
+                },
+              },
+            }),
+          ])
+        );
+      }
     }
     return card;
   }
@@ -4611,7 +4676,7 @@
               ". " +
               repoHealth(status).label +
               ". " +
-              plural(findingsOf(status).length, "finding") +
+              plural(findingsTotal(status), "finding") +
               "."
           );
         }
@@ -4684,7 +4749,12 @@
         selectCommand("status");
         renderSidebar();
 
-        if (!stored && res.data.is_brain && res.data.status) {
+        // The answer just read is this brain's whenever the stored path is the folder the
+        // app was started in, which is the usual case for anyone with one brain. Asking
+        // for status and doctor again then threw away a full reading of the brain and
+        // paid for a second one; the only reason left to ask is a stored brain that is
+        // not this root, and that is a different question rather than the same one twice.
+        if (res.data.is_brain && res.data.status && normPath(App.path) === normPath(res.data.root)) {
           App.status = res.data.status;
           App.doctor = res.data.doctor;
           renderDashboard();

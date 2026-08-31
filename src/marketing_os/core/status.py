@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import contextlib
 import re
+from collections.abc import Iterator
+from contextvars import ContextVar
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from marketing_os.core.catalog import parse_frontmatter
+from marketing_os.core.parallel import gather
 from marketing_os.core.results import envelope, finding, next_action
 from marketing_os.core.schema import load_schema, read_config, repo_mode
 from marketing_os.core.skills import bundled_skills, inspect_runtimes
@@ -209,8 +213,50 @@ def context_status(root: Path) -> dict[str, Any]:
     }
 
 
+#: The status envelopes already computed inside the innermost open :func:`reuse` block,
+#: by resolved root. ``None`` — the default — means no block is open and nothing is kept.
+#: A context variable rather than a module global because the local app answers requests
+#: on a thread each, and one request's block must never be visible to another's.
+_REUSED: ContextVar[dict[str, dict[str, Any]] | None] = ContextVar(
+    "marketing_os_status_reuse", default=None
+)
+
+
+@contextlib.contextmanager
+def reuse() -> Iterator[None]:
+    """Answer ``status_repo`` for a given brain at most once inside this block.
+
+    ``doctor_repo`` is ``status_repo`` plus one finding and three booleans — its first
+    line is the whole status computation — so anything that wants both pays for the
+    catalogue, the validation pass, the context scan and the runtime hashes twice. That is
+    half of what the local app's state request used to cost.
+
+    This is deliberately not a cache. It is opened by a caller who is about to ask two
+    questions about one unchanged brain in one breath, it lives for those microseconds,
+    and it is closed on the way out — so there is no interval in which an edit on disk
+    could be answered from memory, and no invalidation to get wrong. A caller that does
+    not open one, which is every terminal ``mos status`` and ``mos doctor``, computes
+    exactly what it computed before.
+    """
+    token = _REUSED.set({})
+    try:
+        yield
+    finally:
+        _REUSED.reset(token)
+
+
 def status_repo(root: Path) -> dict[str, Any]:
     root = root.expanduser().resolve()
+    shared = _REUSED.get()
+    if shared is None:
+        return _status_repo(root)
+    answer = shared.get(str(root))
+    if answer is None:
+        answer = shared[str(root)] = _status_repo(root)
+    return answer
+
+
+def _status_repo(root: Path) -> dict[str, Any]:
     config = read_config(root)
     if config is None:
         return envelope(
@@ -223,17 +269,28 @@ def status_repo(root: Path) -> dict[str, Any]:
             action=next_action("run-setup", "Create a new business brain with the setup skill."),
             repo_state="absent",
             business={},
-            context={"ready": False, "missing": list(REQUIRED_FIELDS)},
+            # Measured, not assumed. This branch is the one moment onboarding needs the
+            # answer — the folder an operator has just pointed at, before it is a brain — and
+            # a literal here made a folder full of their own writing indistinguishable from an
+            # empty one, so both doors asked again for what was already written down. The
+            # verdict on the folder does not move: it is still not a marketing-os repository.
+            context=context_status(root),
             runtimes=inspect_runtimes(root),
             installed_skills=list(bundled_skills()),
             mode=None,
         )
 
     mode, _ = repo_mode(config)
-    findings = validation_findings(root)
+    # Three independent questions about three different parts of the tree: what does
+    # validation say, what has been answered, are the runtimes wired. Asked at the same
+    # time because each is almost entirely spent waiting on the filesystem, and asking
+    # them one after another made a status check as slow as the sum of its parts.
+    findings, context, runtimes = gather(
+        lambda: validation_findings(root),
+        lambda: context_status(root),
+        lambda: inspect_runtimes(root),
+    )
     errors = [item for item in findings if item["severity"] == "error"]
-    context = context_status(root)
-    runtimes = inspect_runtimes(root)
     runtime_ready = all(item["ready"] for item in runtimes.values())
 
     if errors:
