@@ -615,6 +615,8 @@ and reports the answer as `mode`:
 - `source` — an ancestor directory holding a `marketing-os` `pyproject.toml` beside a
   `.git` directory. Updates with `git -C <root> pull --ff-only`.
 - `pipx` — the install path contains `pipx`. Updates with `pipx upgrade marketing-os`.
+- `uv` — the install path is under a `uv/tools/` prefix, which is where `uv tool install`
+  puts it. Updates with `uv tool upgrade marketing-os`.
 - `unknown` — neither. Nothing runs; you get an `unknown-install` warning telling you
   to upgrade through whichever installer you used.
 

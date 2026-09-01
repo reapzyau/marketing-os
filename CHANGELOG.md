@@ -5,6 +5,26 @@ All notable changes to marketing-os are recorded here. Versions follow
 
 ## [Unreleased]
 
+### Fixed
+
+- **`mos doctor` agrees with `mos status` about discovered context.** On a brain whose
+  brand, voice, audience, strategy and proof were answered in files of its owner's naming,
+  status reported every field complete while doctor, reading the same brain in the same
+  second, reported each canonical file as a `missing-file` error and `checks.structure`
+  false. The structure check predates discovery and reads directories only. Status now
+  hands the context scan it has already run to the findings it has already gathered: a
+  `missing-file` whose path is the canonical file of a field discovery resolved becomes a
+  `file-discovered` warning carrying that `path` and, as `discovered_path`, the file that
+  answered. `checks.structure` and `ok` count only the errors that remain; required files
+  that are not context fields (`goals.md`, `roadmap.md`) and fields nothing answered stay
+  errors, and a brain with nothing discovered produces byte-identical output. `mos validate`
+  is unchanged: it measures the canonical path and still reports it absent.
+- **`mos update` recognises a `uv tool install`.** The published package installed with
+  `uv tool install marketing-os` came back `unknown-install`, because the detector knew a
+  source checkout and pipx only. An install path under `uv/tools/` now reports
+  `mode: "uv"` and runs `uv tool upgrade marketing-os`; the pipx branch is the same code
+  with a different argv.
+
 ## [0.3.0] - 2026-09-02 — Local app
 
 ### Added

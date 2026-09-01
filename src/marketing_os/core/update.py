@@ -24,6 +24,8 @@ def _detect_mode(path: Path) -> tuple[str, Path | None]:
                 text = ""
             if _PROJECT_NAME in text and (ancestor / ".git").is_dir():
                 return "source", ancestor
+    if "/uv/tools/" in path.as_posix().lower():
+        return "uv", None
     if "pipx" in str(path).lower():
         return "pipx", None
     return "unknown", None
@@ -131,10 +133,11 @@ def _update_source(root: Path, *, apply: bool) -> dict[str, Any]:
     return _result_envelope(root, result, run_command=command, mode="source")
 
 
-def _update_pipx(*, apply: bool) -> dict[str, Any]:
+def _update_installer(mode: str, argv: list[str], *, apply: bool) -> dict[str, Any]:
+    """Upgrade through the tool installer named by ``mode``: pipx, or uv's tool command."""
     repo = Path.cwd()
-    command = "pipx upgrade marketing-os"
-    argv = ["pipx", "upgrade", "marketing-os"]
+    command = " ".join(argv)
+    tool = argv[0]
 
     if not apply:
         return envelope(
@@ -142,8 +145,8 @@ def _update_pipx(*, apply: bool) -> dict[str, Any]:
             repo,
             ok=True,
             changes=[f"run: {command}"],
-            action=next_action("apply-update", "Re-run with --yes to upgrade via pipx."),
-            mode="pipx",
+            action=next_action("apply-update", f"Re-run with --yes to upgrade via {tool}."),
+            mode=mode,
             run_command=command,
             applied=False,
             planned=True,
@@ -157,9 +160,11 @@ def _update_pipx(*, apply: bool) -> dict[str, Any]:
             repo,
             ok=False,
             changes=[f"run: {command}"],
-            findings=[finding("installer-unavailable", "pipx is not available on PATH.")],
-            action=next_action("manual-update", "Install pipx or upgrade marketing-os manually."),
-            mode="pipx",
+            findings=[finding("installer-unavailable", f"{tool} is not available on PATH.")],
+            action=next_action(
+                "manual-update", f"Install {tool} or upgrade marketing-os manually."
+            ),
+            mode=mode,
             run_command=command,
             applied=False,
         )
@@ -171,11 +176,11 @@ def _update_pipx(*, apply: bool) -> dict[str, Any]:
             changes=[f"run: {command}"],
             findings=[finding("update-failed", f"'{command}' timed out after 120s.")],
             action=next_action("resolve-update-failure", "Inspect the update output and retry."),
-            mode="pipx",
+            mode=mode,
             run_command=command,
             applied=False,
         )
-    return _result_envelope(repo, result, run_command=command, mode="pipx")
+    return _result_envelope(repo, result, run_command=command, mode=mode)
 
 
 def _update_unknown(*, apply: bool) -> dict[str, Any]:
@@ -193,7 +198,8 @@ def _update_unknown(*, apply: bool) -> dict[str, Any]:
         ],
         action=next_action(
             "manual-update",
-            "Upgrade marketing-os with the installer you used (pip, pipx, or a source checkout).",
+            "Upgrade marketing-os with the installer you used "
+            "(pip, pipx, uv, or a source checkout).",
         ),
         mode="unknown",
         run_command="",
@@ -237,5 +243,7 @@ def update_engine(*, apply: bool) -> dict[str, Any]:
     if mode == "source" and root is not None:
         return _update_source(root, apply=apply)
     if mode == "pipx":
-        return _update_pipx(apply=apply)
+        return _update_installer("pipx", ["pipx", "upgrade", "marketing-os"], apply=apply)
+    if mode == "uv":
+        return _update_installer("uv", ["uv", "tool", "upgrade", "marketing-os"], apply=apply)
     return _update_unknown(apply=apply)

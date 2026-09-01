@@ -149,3 +149,42 @@ def test_detect_mode_unknown(tmp_path: Path) -> None:
     mode, root = _detect_mode(module)
     assert mode == "unknown"
     assert root is None
+
+
+def test_uv_tool_plan_runs_nothing(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(update_mod, "_detect_mode", lambda _p: ("uv", None))
+    run = make_run()
+    monkeypatch.setattr(update_mod.subprocess, "run", run)
+    result = update_engine(apply=False)
+    assert result["ok"] is True
+    assert result["mode"] == "uv"
+    assert result["run_command"] == "uv tool upgrade marketing-os"
+    assert result["changes"] == ["run: uv tool upgrade marketing-os"]
+    assert result["next_action"]["id"] == "apply-update"
+    assert run.calls == []
+
+
+def test_uv_tool_apply_runs_upgrade(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(update_mod, "_detect_mode", lambda _p: ("uv", None))
+    run = make_run(rc=0)
+    monkeypatch.setattr(update_mod.subprocess, "run", run)
+    result = update_engine(apply=True)
+    assert result["ok"] is True
+    assert result["mode"] == "uv"
+    assert result["next_action"]["id"] == "run-doctor"
+    assert run.calls == [["uv", "tool", "upgrade", "marketing-os"]]
+
+
+def test_detect_mode_uv_tool(tmp_path: Path) -> None:
+    """The prefix ``uv tool install`` uses: ``<data dir>/uv/tools/<package>/<venv>``."""
+    prefix = tmp_path / ".local" / "share" / "uv" / "tools" / "marketing-os"
+    site = prefix / "lib" / "python3.12" / "site-packages"
+    module = site / "marketing_os" / "__init__.py"
+    module.parent.mkdir(parents=True)
+    module.write_text("", encoding="utf-8")
+    dist_info = site / "marketing_os-0.3.0.dist-info"
+    dist_info.mkdir()
+    (dist_info / "INSTALLER").write_text("uv\n", encoding="utf-8")
+    mode, root = _detect_mode(module.resolve())
+    assert mode == "uv"
+    assert root is None
