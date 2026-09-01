@@ -29,6 +29,7 @@
     "AGENTS.md",
     "CLAUDE.md",
     "README.md",
+    "CONTRACT.md",
     "business/brand/brand.md",
     "business/brand/voice.md",
     "business/audience/primary.md",
@@ -55,5 +56,70 @@
     "strategy": "business/strategy/strategy.md",
     "proof": "business/proof/testimonials.md"
   },
-  "excluded_from_grounding": ["archive"]
+  "excluded_from_grounding": [
+    "archive"
+  ],
+  "generated_files": [
+    "_index.md"
+  ],
+  "frontmatter_contract": {
+    "required_keys": [
+      "title",
+      "type",
+      "description",
+      "date",
+      "status"
+    ],
+    "connective_keys": [
+      "sources",
+      "related",
+      "produced_by"
+    ],
+    "types": [
+      "business",
+      "knowledge",
+      "source",
+      "decision",
+      "content",
+      "campaign",
+      "report",
+      "output",
+      "reference"
+    ],
+    "folder_types": {
+      "business": "business",
+      "business/decisions": "decision",
+      "knowledge/sources": "source",
+      "knowledge/wiki": "knowledge",
+      "content": "content",
+      "campaigns": "campaign",
+      "reporting": "report",
+      "outputs": "output"
+    },
+    "sources_required_in": [
+      "content",
+      "campaigns",
+      "reporting",
+      "outputs"
+    ],
+    "exempt_names": [
+      "BRAIN.md",
+      "CONTEXT.md",
+      "README.md",
+      "AGENTS.md",
+      "CLAUDE.md",
+      "CONTRACT.md",
+      "_index.md",
+      "_log.md"
+    ],
+    "exempt_suffixes": [
+      ".excalidraw.md"
+    ],
+    "statuses": [
+      "draft",
+      "active",
+      "archived",
+      "superseded"
+    ]
+  }
 }

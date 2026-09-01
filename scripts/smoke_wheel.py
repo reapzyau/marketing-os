@@ -43,6 +43,28 @@ def main() -> int:
             for name in archive.namelist()
         ):
             raise RuntimeError("The wheel is missing the agency mode overlay.")
+        for asset in ("index.html", "app.js", "styles.css"):
+            if not any(name.endswith(f"/ui/static/{asset}") for name in archive.namelist()):
+                raise RuntimeError(f"The wheel is missing the local app asset {asset}.")
+        for asset in ("CONTRACT.md", ".gitattributes"):
+            if not any(
+                name.endswith(f"/assets/business-template/{asset}")
+                for name in archive.namelist()
+            ):
+                raise RuntimeError(f"The wheel is missing the template {asset}.")
+        plugin_mains = [
+            name
+            for name in archive.namelist()
+            if "/assets/business-template/.obsidian/plugins/" in name
+            and name.endswith("/main.js")
+        ]
+        if len(plugin_mains) != 3:
+            raise RuntimeError("The wheel must ship the three Obsidian plugins' main.js.")
+        if not any(
+            name.endswith("/assets/business-template/.obsidian/community-plugins.json")
+            for name in archive.namelist()
+        ):
+            raise RuntimeError("The wheel is missing the Obsidian vault config.")
 
     with tempfile.TemporaryDirectory(prefix="mos-wheel-smoke-") as temp:
         temp_root = Path(temp)
@@ -94,6 +116,27 @@ def main() -> int:
             raise RuntimeError("The installed wheel did not create a healthy business repository.")
         if not (brain / "business" / "clients" / "clients.md").is_file():
             raise RuntimeError("Agency setup did not scaffold the client registry overlay.")
+        if not (brain / "CONTRACT.md").is_file():
+            raise RuntimeError("Setup did not scaffold the document contract.")
+        if not list((brain / ".obsidian" / "plugins").glob("*/main.js")):
+            raise RuntimeError("Setup did not scaffold the Obsidian vault with its plugins.")
+        if "{{TODAY}}" in (brain / "business" / "brand" / "brand.md").read_text(encoding="utf-8"):
+            raise RuntimeError("Template placeholders were not rendered.")
+        build = json.loads(run([str(mos), "index", "build", str(brain), "--json"]).stdout)
+        if not build["ok"] or not (brain / ".mos" / "local" / "catalog.json").is_file():
+            raise RuntimeError("The installed wheel could not catalogue the brain.")
+        sync = json.loads(
+            run([str(mos), "index", "sync", str(brain), "--plan", "--json"]).stdout
+        )
+        if not sync["planned"]:
+            raise RuntimeError("Index sync did not honor the plan gate.")
+        strict = subprocess.run(
+            [str(mos), "validate", str(brain), "--strict", "--json"],
+            capture_output=True,
+            text=True,
+        )
+        if not json.loads(strict.stdout)["ok"]:
+            raise RuntimeError("A freshly scaffolded brain must satisfy its own contract.")
         for runtime_dir in (".claude", ".agents"):
             for skill in (
                 "mos-start",

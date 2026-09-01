@@ -57,3 +57,11 @@ mos validate . --json
 
 When asked how the bets stand, summarize each open bet's hypothesis, deadline, and leading
 evidence, then the recently closed verdicts. Lead with what the operator should decide next.
+
+## Document contract
+
+Every file you write under `business/`, `knowledge/`, `content/`, `campaigns/`, `reporting/`,
+or `outputs/` opens with the frontmatter block defined in the repository's `CONTRACT.md`:
+`title`, `type`, `description`, `date`, `status`, plus at least one of `sources`, `related`,
+or `produced_by`. Deliverables must carry `sources:` — an output with no sources is not
+finished. Emit the block as you write the file; never leave it for a later pass.

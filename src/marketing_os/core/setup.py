@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime
 from pathlib import Path
 from typing import Any
 
@@ -24,7 +25,14 @@ CHOOSE_MODE_REASON = (
 
 
 def _render(text: str, name: str) -> str:
-    return text.replace("{{BUSINESS_NAME}}", name.strip())
+    """Fill template placeholders.
+
+    ``{{TODAY}}`` seeds the ``date`` field of the frontmatter contract so scaffolded
+    documents are born contract-compliant instead of needing a later backfill.
+    """
+    return text.replace("{{BUSINESS_NAME}}", name.strip()).replace(
+        "{{TODAY}}", datetime.date.today().isoformat()
+    )
 
 
 def _tree_actions(root: Path, target: Path) -> list[dict[str, str]]:

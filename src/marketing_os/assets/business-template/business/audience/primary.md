@@ -1,3 +1,13 @@
+---
+title: Primary audience
+type: business
+description: Who the primary customer is, what they are trying to change, and how they decide.
+date: {{TODAY}}
+status: draft
+related:
+  - business/brand/voice.md
+  - business/proof/testimonials.md
+---
 # Primary Audience
 
 ## Who they are

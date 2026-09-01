@@ -61,3 +61,11 @@ mos validate . --json
 
 Publishing, spend, customer contact, and destructive operations remain operator-gated. Do not
 turn early exploration into permanent truth without an explicit decision.
+
+## Document contract
+
+Every file you write under `business/`, `knowledge/`, `content/`, `campaigns/`, `reporting/`,
+or `outputs/` opens with the frontmatter block defined in the repository's `CONTRACT.md`:
+`title`, `type`, `description`, `date`, `status`, plus at least one of `sources`, `related`,
+or `produced_by`. Deliverables must carry `sources:` — an output with no sources is not
+finished. Emit the block as you write the file; never leave it for a later pass.

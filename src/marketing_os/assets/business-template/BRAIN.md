@@ -22,6 +22,34 @@ Before producing work:
 - Work with no better destination belongs in `outputs/YYYY/MM/YYYY-MM-DD-slug/`.
 - Retired material belongs in `archive/` and must not be used for ordinary grounding.
 
+## Navigation
+
+Retrieval here is navigation, not blind search. Read `_index.md` at the level you need,
+choose a branch from its one-line summaries, then open the two or three documents that
+matter. `mos query "<question>" . --json` returns both the candidate documents and the
+index chain to walk.
+
+- `mos index build .` catalogues every document.
+- `mos index sync . --yes` regenerates the `_index.md` hierarchy from that catalogue.
+- `mos related . --yes` proposes `## Related` blocks for substantial documents that have none.
+
+Generated index files carry a do-not-hand-edit marker. Edit the documents; regenerate the map.
+
+## Frontmatter contract
+
+Every document you write under `business/`, `knowledge/`, `content/`, `campaigns/`,
+`reporting/`, or `outputs/` opens with the contract block defined in `CONTRACT.md`:
+`title`, `type`, `description`, `date`, `status`, plus at least one connective key
+(`sources`, `related`, or `produced_by`).
+
+- `description` is one sentence and is what every index and link is built from.
+- Anything under `content/`, `campaigns/`, `reporting/`, or `outputs/` must carry
+  `sources:`. An output with no sources is not finished.
+- `BRAIN.md`, `CONTEXT.md`, `README.md`, `AGENTS.md`, `CLAUDE.md`, `CONTRACT.md`, and any
+  `_index.md` or `_log.md` are structural and exempt, as are `*.excalidraw.md` drawings.
+
+Emit the block as you write the file. `mos validate .` reports gaps; `--strict` fails on them.
+
 ## Invariants
 
 - `business/` is the sole source of business truth. Never create a parallel identity layer.

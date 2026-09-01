@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "marketing-os"
-version = "0.1.0.dev0"
+version = "0.2.0"
 description = "A deterministic CLI and shared agent skills for a file-based marketing brain."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -15,14 +15,28 @@ keywords = ["marketing", "cli", "codex", "claude-code", "agent-skills", "ai-brai
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Intended Audience :: End Users/Desktop",
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Topic :: Office/Business",
+  "Topic :: Utilities",
+  "Typing :: Typed",
 ]
 dependencies = []
+
+# Every URL below was checked with a live request before it was written here.
+# The canonical repository is `marketing-os`; `marketing-os-next` is an old name
+# that GitHub 301-redirects, so it is not used in published metadata.
+[project.urls]
+Homepage = "https://github.com/reapzyau/marketing-os"
+Repository = "https://github.com/reapzyau/marketing-os"
+Issues = "https://github.com/reapzyau/marketing-os/issues"
+Changelog = "https://github.com/reapzyau/marketing-os/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = [
@@ -43,9 +57,13 @@ include = ["marketing_os*"]
 marketing_os = [
   "assets/**/*",
   "assets/business-template/.gitignore",
+  "assets/business-template/.gitattributes",
   "assets/business-template/**/.gitkeep",
+  "assets/business-template/.obsidian/**/*",
+  "ui/static/**/*",
   "py.typed",
 ]
+"marketing_os.ui" = ["static/**/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -59,4 +77,12 @@ line-length = 100
 target-version = "py310"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "B", "UP", "SIM"]
+select = ["E", "F", "I", "B", "UP", "SIM", "C90"]
+
+# Cyclomatic complexity ceiling. Set just above the current worst function
+# (`cli.dispatch`, 31) so it enforces from day one with no grandfathering and no
+# suppressions. It is a regression ceiling, not the target: ratchet it down as
+# hotspots are simplified. A ceiling does not stop a function below it growing
+# toward it.
+[tool.ruff.lint.mccabe]
+max-complexity = 32

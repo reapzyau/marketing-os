@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import re
+from functools import lru_cache
 from importlib import resources
 from pathlib import Path
 from typing import Any
@@ -27,8 +29,54 @@ def skills_root() -> Path:
     return assets_root() / "skills"
 
 
+@lru_cache(maxsize=1)
+def _schema_text() -> str:
+    return (assets_root() / "schema.json").read_text(encoding="utf-8")
+
+
+@lru_cache(maxsize=1)
 def load_schema() -> dict[str, Any]:
-    return json.loads((assets_root() / "schema.json").read_text(encoding="utf-8"))
+    """The packaged schema, parsed once per process.
+
+    It is a read-only asset inside the installed distribution, so it cannot change while
+    this process runs, and it was being re-read thousands of times per status check: once
+    per document from ``catalog.describe`` and once more per document from
+    ``is_exempt_name``, six thousand reads of the same 2.5 kilobyte file for one request
+    on a real brain. Reading it once instead is the single largest saving in the program.
+
+    Every caller indexes or ``.get()``s the result and none mutates it, which is what
+    makes one shared dictionary safe to hand out. Anything that needs to change the schema
+    should copy what it needs first.
+    """
+    return json.loads(_schema_text())
+
+
+@lru_cache(maxsize=1)
+def schema_fingerprint() -> str:
+    """A digest of the packaged schema, for caches that hold schema-derived answers.
+
+    A document's catalogue entry is a reading of that document against this schema, so an
+    upgrade that changes the contract has to invalidate every cached reading. Naming the
+    schema by its content says so exactly, and costs nothing after the first call.
+    """
+    return hashlib.sha256(_schema_text().encode("utf-8")).hexdigest()
+
+
+@lru_cache(maxsize=8192)
+def is_exempt_name(name: str) -> bool:
+    """Whether a file name is structural and outside the frontmatter contract.
+
+    Exact names (``BRAIN.md``, ``_index.md``, ...) are the agent- and index-facing files;
+    suffixes cover files another tool owns, such as Excalidraw's ``*.excalidraw.md``
+    drawings, whose body is that tool's data rather than a document.
+
+    A pure function of the name and of a schema that cannot change under it, asked once
+    per document per validation pass, so the answers are kept.
+    """
+    contract = load_schema()["frontmatter_contract"]
+    if name in contract["exempt_names"]:
+        return True
+    return name.endswith(tuple(contract.get("exempt_suffixes", ())))
 
 
 def read_config(root: Path) -> dict[str, Any] | None:

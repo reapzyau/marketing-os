@@ -11,3 +11,10 @@ dist/
 .agent/
 .claude/skills/
 .agents/skills/
+
+# local gauntlet progress page
+.mos-progress/
+.mos-shots/
+.mos-shots-bar/
+.mos-blind/
+.mos-proof/

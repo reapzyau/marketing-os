@@ -1,10 +1,11 @@
+import io
 import json
 from pathlib import Path
 
 import pytest
 
 from marketing_os.cli import main as cli_main
-from marketing_os.cli.main import main
+from marketing_os.cli.main import main, run_argv
 from marketing_os.core.results import envelope, next_action
 
 REQUIRED_KEYS = {"schema", "command", "ok", "repo", "changes", "findings", "next_action"}
@@ -116,9 +117,11 @@ def test_help_lists_all_commands(capsys) -> None:
         "query",
         "think",
         "onboard",
+        "attach",
         "migrate",
         "update",
         "statusline",
+        "context",
     ):
         assert command in output
 
@@ -231,6 +234,41 @@ def test_onboard_envelope_and_mutation_enforcement(tmp_path: Path, capsys) -> No
     assert exc.value.code == 2
 
 
+def test_attach_plans_then_applies_a_legacy_folder(tmp_path: Path, capsys) -> None:
+    target = tmp_path / "legacy"
+    (target / ".mos").mkdir(parents=True)
+    (target / ".mos" / "config.yaml").write_text(
+        "mode: agency\nname: Legacy Lab\n", encoding="utf-8"
+    )
+    (target / "BRAIN.md").write_text("# Mine\n", encoding="utf-8")
+    (target / "business").mkdir()
+
+    code = main(["attach", str(target), "--plan", "--json"])
+    planned = json.loads(capsys.readouterr().out)
+    assert code == 0
+    assert planned.keys() >= REQUIRED_KEYS
+    assert planned["schema"] == "mos.attach.v1"
+    assert planned["planned"] is True
+    assert planned["name"] == "Legacy Lab"
+    assert planned["mode"] == "agency"
+    assert "config .mos/config.yaml" in planned["changes"]
+    assert (target / ".mos" / "config.yaml").read_text(encoding="utf-8").startswith("mode:")
+
+    code = main(["attach", str(target), "--yes", "--json"])
+    applied = json.loads(capsys.readouterr().out)
+    assert code == 0
+    assert applied["applied"] is True
+    assert applied["next_action"]["id"] == "run-status"
+
+    code = main(["status", str(target), "--json"])
+    status = json.loads(capsys.readouterr().out)
+    assert status["repo_state"] != "absent"
+
+    with pytest.raises(SystemExit) as exc:
+        main(["attach", str(target), "--json"])
+    assert exc.value.code == 2
+
+
 def test_help_lists_mode_flag(capsys) -> None:
     with pytest.raises(SystemExit):
         main(["onboard", "--help"])
@@ -290,3 +328,273 @@ def test_statusline_json_envelope(tmp_path: Path, capsys) -> None:
     assert code == 0
     assert payload["schema"] == "mos.statusline.v1"
     assert payload["active"] is True
+
+
+def _seed_corpus(root: Path, count: int) -> None:
+    for number in range(count):
+        target = root / "knowledge" / "wiki" / f"page-{number:03d}.md"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(
+            f"---\ntitle: Page {number}\ntype: knowledge\n"
+            f"description: Channel notes for page {number}.\n"
+            f"date: 2026-08-20\nstatus: active\nproduced_by: test\n---\n\n"
+            f"# Page {number}\n\nChannel notes for page {number}.\n",
+            encoding="utf-8",
+        )
+
+
+def test_index_build_emits_the_envelope(tmp_path: Path, capsys) -> None:
+    target = _make_repo(tmp_path, capsys)
+    code = main(["index", "build", str(target), "--json"])
+    payload = json.loads(capsys.readouterr().out)
+    assert code == 0
+    assert payload.keys() >= REQUIRED_KEYS
+    assert payload["schema"] == "mos.index-build.v1"
+    assert (target / ".mos" / "local" / "catalog.json").is_file()
+
+
+def test_index_sync_requires_plan_or_apply(tmp_path: Path, capsys) -> None:
+    target = _make_repo(tmp_path, capsys)
+    with pytest.raises(SystemExit):
+        main(["index", "sync", str(target), "--json"])
+
+
+def test_index_sync_plans_then_applies(tmp_path: Path, capsys) -> None:
+    target = _make_repo(tmp_path, capsys)
+    _seed_corpus(target, 30)
+    main(["index", "sync", str(target), "--plan", "--json"])
+    planned = json.loads(capsys.readouterr().out)
+    assert planned["planned"] is True
+    assert planned["changes"]
+    assert not (target / "_index.md").exists()
+
+    main(["index", "sync", str(target), "--yes", "--json"])
+    applied = json.loads(capsys.readouterr().out)
+    assert applied["schema"] == "mos.index-sync.v1"
+    assert "_index.md" in applied["applied"]
+    assert (target / "_index.md").is_file()
+
+
+def test_index_status_reports_coverage(tmp_path: Path, capsys) -> None:
+    target = _make_repo(tmp_path, capsys)
+    code = main(["index", "status", str(target), "--json"])
+    payload = json.loads(capsys.readouterr().out)
+    assert code == 0
+    assert payload["schema"] == "mos.index-status.v1"
+    assert payload["coverage"]["documents"] > 0
+    assert set(payload["percent"]) == {"frontmatter", "description", "outgoing_links"}
+
+
+def test_related_plans_then_applies(tmp_path: Path, capsys) -> None:
+    target = _make_repo(tmp_path, capsys)
+    _seed_corpus(target, 30)
+    main(["related", str(target), "--plan", "--json"])
+    planned = json.loads(capsys.readouterr().out)
+    assert planned["schema"] == "mos.related.v1"
+    assert planned["planned"] is True
+    assert planned["applied"] == []
+
+    main(["related", str(target), "--yes", "--limit", "2", "--json"])
+    applied = json.loads(capsys.readouterr().out)
+    assert len(applied["applied"]) <= 2
+
+
+def test_validate_strict_promotes_contract_gaps(tmp_path: Path, capsys) -> None:
+    target = _make_repo(tmp_path, capsys)
+    (target / "knowledge" / "wiki" / "loose.md").write_text(
+        "# Loose\n\nNo contract block at all.\n", encoding="utf-8"
+    )
+    main(["validate", str(target), "--json"])
+    relaxed = json.loads(capsys.readouterr().out)
+    assert relaxed["ok"] is True
+    assert relaxed["strict"] is False
+    assert relaxed["summary"]["contract_gaps"] > 0
+
+    code = main(["validate", str(target), "--strict", "--json"])
+    strict = json.loads(capsys.readouterr().out)
+    assert code == 1
+    assert strict["ok"] is False
+
+
+def test_query_grep_returns_literal_matches(tmp_path: Path, capsys) -> None:
+    target = _make_repo(tmp_path, capsys)
+    (target / "knowledge" / "wiki" / "links.md").write_text(
+        "# Links\n\nSee https://example.com/pricing\n", encoding="utf-8"
+    )
+    code = main(["query", "https://example.com/pricing", str(target), "--grep", "--json"])
+    payload = json.loads(capsys.readouterr().out)
+    assert code == 0
+    assert payload["mode"] == "grep"
+    assert payload["matches"][0]["path"] == "knowledge/wiki/links.md"
+
+
+ANSWER = (
+    "We are the boxing gym for people who were never picked for the team. Beginners "
+    "first, no egos, no shouting, and every class starts on time."
+)
+
+
+def test_context_show_envelope(tmp_path: Path, capsys) -> None:
+    target = _make_repo(tmp_path, capsys)
+    code = main(["context", "show", str(target), "--json"])
+    payload = json.loads(capsys.readouterr().out)
+    assert code == 0
+    assert payload.keys() >= REQUIRED_KEYS
+    assert payload["schema"] == "mos.context.v1"
+    assert payload["operation"] == "show"
+    assert payload["missing"] == ["brand", "voice", "audience", "offer"]
+    assert all(item["question"] for item in payload["fields"])
+
+
+def test_context_set_plans_then_applies_and_status_agrees(tmp_path: Path, capsys) -> None:
+    target = _make_repo(tmp_path, capsys)
+    code = main(
+        ["context", "set", str(target), "--field", "brand", "--text", ANSWER, "--plan", "--json"]
+    )
+    planned = json.loads(capsys.readouterr().out)
+    assert code == 0
+    assert planned["schema"] == "mos.context.v1"
+    assert planned["planned"] is True
+    assert planned["diff"]
+    assert "TODO:" in (target / "business" / "brand" / "brand.md").read_text(encoding="utf-8")
+
+    code = main(
+        ["context", "set", str(target), "--field", "brand", "--text", ANSWER, "--yes", "--json"]
+    )
+    applied = json.loads(capsys.readouterr().out)
+    assert code == 0
+    assert applied["applied"] is True
+
+    main(["status", str(target), "--json"])
+    status = json.loads(capsys.readouterr().out)
+    assert status["context"]["missing"] == ["voice", "audience", "offer"]
+    assert status["context"]["fields"]["brand"]["complete"] is True
+
+
+def test_context_set_requires_a_mutation_flag(tmp_path: Path, capsys) -> None:
+    target = _make_repo(tmp_path, capsys)
+    with pytest.raises(SystemExit) as exc:
+        main(["context", "set", str(target), "--field", "brand", "--text", ANSWER, "--json"])
+    assert exc.value.code == 2
+
+
+def test_context_set_reads_the_answer_from_stdin(tmp_path: Path, capsys, monkeypatch) -> None:
+    target = _make_repo(tmp_path, capsys)
+    monkeypatch.setattr("sys.stdin", io.StringIO(ANSWER))
+    code = main(
+        ["context", "set", str(target), "--field", "voice", "--text", "-", "--yes", "--json"]
+    )
+    payload = json.loads(capsys.readouterr().out)
+    assert code == 0
+    assert payload["field_complete"] is True
+    assert ANSWER in (target / "business" / "brand" / "voice.md").read_text(encoding="utf-8")
+
+
+def test_context_stdin_sentinel_never_reaches_a_server_thread(tmp_path: Path, capsys) -> None:
+    """run_argv is the local app's seam; reading stdin there would hang the request."""
+    target = _make_repo(tmp_path, capsys)
+    result = run_argv(
+        ["context", "set", str(target), "--field", "brand", "--text", "-", "--yes"]
+    )
+    assert result["ok"] is False
+    assert result["findings"][0]["code"] == "command-error"
+    assert "stdin" in result["findings"][0]["message"]
+
+
+def test_context_set_unknown_field_is_a_finding_not_a_crash(tmp_path: Path, capsys) -> None:
+    target = _make_repo(tmp_path, capsys)
+    code = main(
+        ["context", "set", str(target), "--field", "vibe", "--text", ANSWER, "--yes", "--json"]
+    )
+    payload = json.loads(capsys.readouterr().out)
+    assert code == 1
+    assert payload["findings"][0]["code"] == "unknown-field"
+    assert "brand" in payload["findings"][0]["message"]
+
+
+def test_context_plan_prints_the_diff_for_a_human(tmp_path: Path, capsys) -> None:
+    target = _make_repo(tmp_path, capsys)
+    code = main(["context", "set", str(target), "--field", "brand", "--text", ANSWER, "--plan"])
+    output = capsys.readouterr().out
+    assert code == 0
+    assert "Diff:" in output
+    assert f"+{ANSWER}" in output
+
+
+# --- assist: the one seam that may invoke an agent runtime ---------------------------
+
+
+def _no_runtimes(monkeypatch, tmp_path: Path) -> None:
+    """A PATH with nothing on it, so the contract tests never touch a real runtime."""
+    empty = tmp_path / "empty-path"
+    empty.mkdir(exist_ok=True)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("PATH", str(empty))
+
+
+def test_assist_status_is_an_envelope_and_reports_nothing_when_nothing_answers(
+    tmp_path: Path, capsys, monkeypatch
+) -> None:
+    _no_runtimes(monkeypatch, tmp_path)
+    code = main(["assist", "status", "--json"])
+    payload = json.loads(capsys.readouterr().out)
+    assert code == 0
+    assert payload.keys() >= REQUIRED_KEYS
+    assert payload["schema"] == "mos.assist.v1"
+    assert payload["command"] == "assist"
+    assert payload["operation"] == "status"
+    assert payload["ok"] is True
+    assert payload["ready"] is False
+    assert payload["runtimes"] == []
+    assert payload["changes"] == []
+
+
+def test_assist_ask_fails_clearly_with_no_runtime_and_writes_nothing(
+    tmp_path: Path, capsys, monkeypatch
+) -> None:
+    target = _make_repo(tmp_path, capsys)
+    _no_runtimes(monkeypatch, tmp_path)
+    code = main(["assist", "ask", str(target), "--field", "brand", "--json"])
+    payload = json.loads(capsys.readouterr().out)
+    assert code == 1
+    assert payload.keys() >= REQUIRED_KEYS
+    assert payload["schema"] == "mos.assist.v1"
+    assert payload["operation"] == "ask"
+    assert payload["ok"] is False
+    assert payload["findings"][0]["code"] == "no-runtime"
+    assert payload["question"] == ""
+    assert payload["draft"] == ""
+    assert payload["changes"] == []
+
+
+def test_assist_ask_refuses_a_field_that_is_not_a_context_field(
+    tmp_path: Path, capsys, monkeypatch
+) -> None:
+    """A field that looks like a flag is stopped twice: by argparse, then by the field set."""
+    target = _make_repo(tmp_path, capsys)
+    _no_runtimes(monkeypatch, tmp_path)
+
+    # Written as two tokens, our own parser refuses it as a usage error.
+    usage = run_argv(["assist", "ask", str(target), "--field", "--print"])
+    assert usage["ok"] is False
+    assert usage["findings"][0]["code"] == "command-error"
+
+    # Forced through as one token, the closed set of context fields refuses it, and no
+    # child is ever reached with it.
+    code = main(["assist", "ask", str(target), "--field=--print", "--json"])
+    payload = json.loads(capsys.readouterr().out)
+    assert code == 1
+    assert payload["findings"][0]["code"] == "unknown-field"
+    assert payload["question"] == ""
+
+
+def test_assist_ask_refuses_a_transcript_that_is_not_json(
+    tmp_path: Path, capsys, monkeypatch
+) -> None:
+    target = _make_repo(tmp_path, capsys)
+    _no_runtimes(monkeypatch, tmp_path)
+    result = run_argv(
+        ["assist", "ask", str(target), "--field", "brand", "--transcript-json", "nonsense"]
+    )
+    assert result["ok"] is False
+    assert result["findings"][0]["code"] == "bad-transcript"

@@ -61,3 +61,123 @@ def test_agency_overlay_ships_and_scaffolds(tmp_path: Path) -> None:
     text = registry.read_text(encoding="utf-8")
     assert "# Client Registry" in text
     assert "| Client | Repo | Status | Access |" in text
+
+
+def test_schema_publishes_the_frontmatter_contract() -> None:
+    contract = load_schema()["frontmatter_contract"]
+    assert contract["required_keys"] == ["title", "type", "description", "date", "status"]
+    assert set(contract["connective_keys"]) == {"sources", "related", "produced_by"}
+    assert set(contract["sources_required_in"]) == {
+        "content",
+        "campaigns",
+        "reporting",
+        "outputs",
+    }
+    assert set(contract["folder_types"].values()) <= set(contract["types"])
+    assert contract["exempt_suffixes"] == [".excalidraw.md"]
+    assert "CONTRACT.md" in load_schema()["required_files"]
+
+
+def test_scaffolded_documents_satisfy_their_own_contract(tmp_path: Path) -> None:
+    """Documents are born compliant, so no brain ever needs a retrospective backfill."""
+    from marketing_os.core.catalog import build_catalog
+    from marketing_os.core.graphlint import contract_findings
+
+    root = tmp_path / "brain"
+    setup_repo(root, "Golden Business", "all", mode="agency", apply=True)
+    docs = build_catalog(root)
+    contract = load_schema()["frontmatter_contract"]
+    exempt = set(contract["exempt_names"])
+    checked = 0
+    for relative, doc in docs.items():
+        if Path(relative).name in exempt:
+            continue
+        checked += 1
+        assert doc["has_frontmatter"], relative
+        assert doc["missing_keys"] == [], relative
+        assert doc["connective_keys"], relative
+    assert checked >= 8
+    assert contract_findings(root) == []
+
+
+def test_scaffolded_dates_are_rendered_not_placeholders(tmp_path: Path) -> None:
+    import datetime
+
+    root = tmp_path / "brain"
+    setup_repo(root, "Golden Business", "all", mode="in-house", apply=True)
+    text = (root / "business" / "brand" / "brand.md").read_text(encoding="utf-8")
+    assert "{{TODAY}}" not in text
+    assert datetime.date.today().isoformat() in text
+    assert "{{BUSINESS_NAME}}" not in text
+
+
+def test_template_ships_a_line_ending_contract() -> None:
+    attributes = assets_root() / "business-template" / ".gitattributes"
+    assert attributes.is_file()
+    assert "text=auto" in attributes.read_text(encoding="utf-8")
+
+
+def test_skills_document_the_navigation_commands() -> None:
+    skills = assets_root() / "skills"
+    text = "\n".join(path.read_text(encoding="utf-8") for path in skills.rglob("SKILL.md"))
+    for command in ("mos index build", "mos index sync", "mos related"):
+        assert command in text
+
+
+def test_every_skill_states_the_frontmatter_contract() -> None:
+    skills = assets_root() / "skills"
+    for path in sorted(skills.rglob("SKILL.md")):
+        assert "CONTRACT.md" in path.read_text(encoding="utf-8"), path.parent.name
+
+
+def _obsidian_root() -> Path:
+    return assets_root() / "business-template" / ".obsidian"
+
+
+def test_template_ships_an_obsidian_vault_config() -> None:
+    root = _obsidian_root()
+    for name in ("app.json", "appearance.json", "core-plugins.json", "community-plugins.json"):
+        json.loads((root / name).read_text(encoding="utf-8"))
+    enabled = json.loads((root / "community-plugins.json").read_text(encoding="utf-8"))
+    assert enabled == [
+        "obsidian-icon-folder",
+        "git-file-explorer-colors",
+        "hide-empty-folders",
+    ]
+    for plugin_id in enabled:
+        folder = root / "plugins" / plugin_id
+        manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
+        assert manifest["id"] == plugin_id
+        assert (folder / "main.js").is_file(), plugin_id
+        assert (folder / "LICENSE").is_file(), plugin_id
+    snippets = json.loads((root / "appearance.json").read_text(encoding="utf-8"))
+    for snippet in snippets["enabledCssSnippets"]:
+        assert (root / "snippets" / f"{snippet}.css").is_file(), snippet
+
+
+def test_obsidian_icon_map_names_real_template_folders() -> None:
+    """Folder emojis come from the Iconize map, never from renaming schema folders."""
+    template = assets_root() / "business-template"
+    overlay = assets_root() / "mode-overlays" / "agency"
+    data = json.loads(
+        (_obsidian_root() / "plugins" / "obsidian-icon-folder" / "data.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    mapped = {key for key in data if key != "settings"}
+    for top in load_schema()["allowed_top_level"]:
+        assert top in mapped, top
+    for path in mapped:
+        assert (template / path).exists() or (overlay / path).exists(), path
+    visible = {c.name for c in template.iterdir() if c.is_dir() and not c.name.startswith(".")}
+    assert set(load_schema()["allowed_top_level"]) == visible
+
+
+def test_template_gitignore_keeps_vault_config_but_drops_ui_state() -> None:
+    text = (assets_root() / "business-template" / ".gitignore").read_text(encoding="utf-8")
+    assert ".obsidian/workspace.json" in text
+    assert ".obsidian/cache" in text
+    assert ".trash/" in text
+    rules = [line for line in text.splitlines() if line and not line.startswith("#")]
+    assert ".obsidian/" not in rules
+    assert not any("plugins" in rule for rule in rules)

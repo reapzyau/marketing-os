@@ -34,9 +34,19 @@ Help is a dialogue, not a lecture:
 ## Common routes
 
 - New or incomplete repository: `mos-onboard`.
+- An existing folder that already holds a brain (legacy YAML config, or `BRAIN.md` beside
+  `business/`): `mos attach <path> --plan`, then `--yes` — adopts it without rewriting content.
 - Daily orientation: `mos-start`.
 - Structural errors: `mos validate . --json`.
 - Runtime discovery errors: preview and then apply `mos skills sync`.
 
 Explain the outcome first. Include technical commands only when they help the user act or verify.
 Do not claim that an uninstalled skill or unsupported command exists.
+
+## Document contract
+
+Every file you write under `business/`, `knowledge/`, `content/`, `campaigns/`, `reporting/`,
+or `outputs/` opens with the frontmatter block defined in the repository's `CONTRACT.md`:
+`title`, `type`, `description`, `date`, `status`, plus at least one of `sources`, `related`,
+or `produced_by`. Deliverables must carry `sources:` — an output with no sources is not
+finished. Emit the block as you write the file; never leave it for a later pass.
