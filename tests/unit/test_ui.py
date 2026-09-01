@@ -273,8 +273,13 @@ def test_a_browser_that_never_opens_still_warns_and_prints_the_url(
         stop_ui()
 
 
-class _MissingProcPath(Path):
-    """A Path whose /proc probes all come up empty, so only the env markers can fire."""
+class _MissingProcPath(type(Path())):
+    """A Path whose /proc probes all come up empty, so only the env markers can fire.
+
+    Subclasses the concrete flavour (``PosixPath``/``WindowsPath``) that ``Path()`` returns
+    rather than ``Path`` itself: before 3.12, ``Path`` carries no ``_flavour``, so a direct
+    subclass raises ``AttributeError`` on the first instantiation. We support 3.10.
+    """
 
     def exists(self, *args, **kwargs) -> bool:
         if str(self).startswith("/proc/"):
