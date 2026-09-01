@@ -13,6 +13,10 @@ jobs:
   test:
     runs-on: ${{ matrix.os }}
     strategy:
+      # One platform's failure must not cancel the others. Without this, a Windows
+      # failure cancelled the whole matrix before macOS or the other Python ever
+      # reported, so a bug could sit red for weeks looking like a single problem.
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         python: ["3.10", "3.13"]
