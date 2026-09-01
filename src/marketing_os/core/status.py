@@ -290,6 +290,7 @@ def _status_repo(root: Path) -> dict[str, Any]:
         lambda: context_status(root),
         lambda: inspect_runtimes(root),
     )
+    findings = _reconcile_discovered(findings, context)
     errors = [item for item in findings if item["severity"] == "error"]
     runtime_ready = all(item["ready"] for item in runtimes.values())
 
@@ -325,6 +326,52 @@ def _status_repo(root: Path) -> dict[str, Any]:
         installed_skills=list(bundled_skills()),
         mode=mode,
     )
+
+
+def _reconcile_discovered(
+    findings: list[dict[str, str]], context: dict[str, Any]
+) -> list[dict[str, str]]:
+    """Let the context scan correct the structure check where the two disagree.
+
+    Validation reads directories only, so a required context file that is not at its
+    canonical path is a ``missing-file`` error to it — while the context scan, one line
+    earlier, may have found the very answer that file is for, filed under a name of the
+    owner's choosing. Status then said the field was complete, and doctor said the same
+    field's file was missing and that this was an error. Both were reading the same brain.
+
+    Here the finding is downgraded to a ``file-discovered`` warning naming the canonical
+    path it still expects and, as ``discovered_path``, the file that answered instead: the
+    information is kept, and the verdict is right. Only a field discovery actually resolved
+    qualifies; a required file that is not a context field, or a field nothing answered,
+    stays the error it was. The scan is the one ``status`` has already paid for — it is
+    passed in, never re-run.
+    """
+    discovered = {
+        entry["path"]: entry["discovered_path"]
+        for entry in context["fields"].values()
+        if entry["source"] == "discovered"
+    }
+    if not discovered:
+        return findings
+    reconciled: list[dict[str, str]] = []
+    for item in findings:
+        where = discovered.get(item["path"]) if item["code"] == "missing-file" else None
+        if where is None:
+            reconciled.append(item)
+            continue
+        reconciled.append(
+            {
+                **finding(
+                    "file-discovered",
+                    f"Required file is missing at its canonical path; its answer was "
+                    f"discovered at {where}.",
+                    severity="warning",
+                    path=item["path"],
+                ),
+                "discovered_path": where,
+            }
+        )
+    return reconciled
 
 
 def doctor_repo(root: Path) -> dict[str, Any]:

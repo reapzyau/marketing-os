@@ -61,6 +61,7 @@ Each entry in `findings` describes one problem:
 | `severity` | string | `error` (default) or `warning`. |
 | `message` | string | A human-readable explanation. |
 | `path` | string | The offending path, or `""` when not path-specific. |
+| `discovered_path` | string | Optional. Present only on `file-discovered`: the repo-relative file that answers the context field whose canonical file `path` names. |
 
 `ok` and the exit code are governed by `error` findings only. A result can carry
 `warning` findings (for example, `unknown-top-level`) and still be `ok`.
@@ -91,6 +92,14 @@ context field. `mos context show` reports the same facts, one per entry in its o
 | `discovered_path` | string | The repo-relative file that answered. Present only when `source` is `discovered`. |
 | `files` | array of string | `offer` only: every offer document the brain holds. |
 | `truncated` | boolean | Present, and always `true`, only when the search hit its budget before finishing. A `missing` verdict beside it means "not found in what was looked at", not "not there". |
+
+A discovered field also corrects the structure check it would otherwise contradict. A
+required context file that is absent from its canonical `path` is a `missing-file` error to
+`mos validate`, which reads directories only; on `status` and `doctor`, where the context
+scan has already found the answer elsewhere, that one finding is reported instead as a
+`file-discovered` warning carrying the same `path` and the `discovered_path` that answered.
+`checks.structure` and `ok` then count only the errors that remain. Required files that are
+not context fields, and fields nothing answered, stay `missing-file` errors.
 
 `context` is measured for whatever folder is pointed at, including one that is not a brain:
 a directory with no `.mos/config.yaml` still reports the fields it already answers, which is
