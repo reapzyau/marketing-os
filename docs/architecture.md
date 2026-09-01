@@ -24,7 +24,8 @@ same place and in [philosophy.md](philosophy.md):
   invokes no runtime and makes no outbound call of its own. It sits outside the determinism
   claim all the same: the pid, port and URL it reports are whatever that run happened to get.
 - Two commands leave the filesystem, as child processes rather than as network code of their
-  own. `mos update` runs `git -C <root> pull --ff-only` or `pipx upgrade marketing-os` — a
+  own. `mos update` runs `git -C <root> pull --ff-only`, `pipx upgrade marketing-os` or
+  `uv tool upgrade marketing-os` — a
   deliberate fetch, on the operator's own credentials — and reports the exact argv as
   `run_command`, so `--plan` shows what `--yes` will do. `mos onboard --yes` shells out to
   `git init`, `git add` and `git commit`. Every other command is filesystem-only: no network,

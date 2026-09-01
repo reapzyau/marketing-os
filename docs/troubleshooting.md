@@ -216,6 +216,10 @@ priority.
   packaged schema. Confirm you are on a compatible marketing-os version.
 - `missing-directory` / `missing-file` — a required path from `schema.json` is absent. Re-run
   onboard to recreate scaffolded files without touching existing ones.
+- `file-discovered` — a warning, not an error: a required context file is absent from its
+  canonical path, but `status` found the answer in another document, named as
+  `discovered_path`. Nothing needs repairing to work; `mos validate` still reports the
+  canonical path as `missing-file` because it measures structure alone.
 - `unknown-top-level` — a warning, not an error: a top-level path sits outside the canonical
   architecture. Move the work under an allowed tree (`business/`, `knowledge/`, `content/`,
   `campaigns/`, `reporting/`, `outputs/`, or `archive/`) or remove it. `mos migrate . --plan`

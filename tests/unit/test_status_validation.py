@@ -451,3 +451,83 @@ def test_doctor_can_call_context_ready_on_a_folder_that_is_not_a_brain_but_never
     assert report["checks"]["context_ready"] is True
     assert report["ok"] is False
     assert report["next_action"]["id"] == "repair-health"
+
+
+def test_a_discovered_answer_downgrades_its_missing_canonical_file_to_a_warning(
+    tmp_path: Path,
+) -> None:
+    """Doctor and status read one brain and must give one verdict on it.
+
+    Validation reads directories, so a canonical context file that is not there is a
+    ``missing-file`` error to it, while the context scan beside it has just found the answer
+    that file is for. The finding is downgraded to a ``file-discovered`` warning that keeps
+    both paths. A required file that is not a context field (``goals.md``) is nobody's
+    discovery and stays the error it was.
+    """
+    root = tmp_path / "brain"
+    setup_repo(root, "Example Business", "all", mode="in-house", apply=True)
+    _non_canonical_context(root)
+    for relative in (
+        "business/brand/brand.md",
+        "business/brand/voice.md",
+        "business/audience/primary.md",
+        "business/strategy/goals.md",
+    ):
+        (root / relative).unlink()
+
+    status = status_repo(root)
+    doctor = doctor_repo(root)
+    assert doctor["findings"] == status["findings"]
+    assert status["context"]["ready"] is True
+    downgraded = [item for item in status["findings"] if item["code"] == "file-discovered"]
+    assert [(item["severity"], item["path"], item["discovered_path"]) for item in downgraded] == [
+        ("warning", "business/brand/brand.md", "business/brand/positioning/positioning.md"),
+        ("warning", "business/brand/voice.md", "reference/core/voice.md"),
+        ("warning", "business/audience/primary.md", "reference/core/audience.md"),
+    ]
+    assert all("reference/core/voice.md" in item["message"] for item in downgraded[1:2])
+    still_missing = [item for item in status["findings"] if item["code"] == "missing-file"]
+    assert [(item["severity"], item["path"]) for item in still_missing] == [
+        ("error", "business/strategy/goals.md")
+    ]
+    assert doctor["checks"]["structure"] is False
+    assert doctor["ok"] is False
+
+    # Put the one genuine error right and the verdicts line up: the three discovered
+    # answers no longer count against the structure they were never a fault of.
+    (root / "business/strategy/goals.md").write_text("# Goals\n", encoding="utf-8")
+    status = status_repo(root)
+    doctor = doctor_repo(root)
+    assert not any(item["code"] == "missing-file" for item in status["findings"])
+    assert status["ok"] is True
+    assert status["repo_state"] == "ready"
+    assert doctor["checks"] == {
+        "structure": True,
+        "runtime_wiring": True,
+        "context_ready": True,
+    }
+    assert doctor["ok"] is True
+    # Validate is the narrower, canonical-path measure and keeps saying the files are absent.
+    validation = validate_repo(root)
+    assert sorted(
+        item["path"] for item in validation["findings"] if item["code"] == "missing-file"
+    ) == ["business/audience/primary.md", "business/brand/brand.md", "business/brand/voice.md"]
+
+
+def test_a_canonical_brain_reports_nothing_discovered_and_the_findings_are_validate_s(
+    tmp_path: Path,
+) -> None:
+    """Nothing was discovered, so nothing is downgraded: the findings are validate's, verbatim."""
+    root = tmp_path / "brain"
+    setup_repo(root, "Example Business", "all", mode="in-house", apply=True)
+    _complete_context(root)
+    status = status_repo(root)
+    doctor = doctor_repo(root)
+    assert status["context"]["ready"] is True
+    assert not any(
+        entry["source"] == "discovered" for entry in status["context"]["fields"].values()
+    )
+    assert doctor["findings"] == status["findings"] == validate_repo(root)["findings"]
+    assert not any(item["code"] == "file-discovered" for item in doctor["findings"])
+    assert not any("discovered_path" in item for item in doctor["findings"])
+    assert doctor["checks"]["structure"] is True
