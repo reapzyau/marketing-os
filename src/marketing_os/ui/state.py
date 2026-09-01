@@ -12,6 +12,7 @@ drive the API.
 from __future__ import annotations
 
 import contextlib
+import ctypes
 import datetime
 import json
 import os
@@ -117,9 +118,58 @@ def clear_state() -> bool:
     return True
 
 
+# The Win32 liveness probe. SYNCHRONIZE is the least access ``WaitForSingleObject`` needs,
+# so the handle opened below carries no right to change the process — only the right to ask
+# whether it has ended. A process handle is signalled once the process exits, so a wait that
+# times out is the answer "still running".
+_SYNCHRONIZE = 0x00100000
+_WAIT_TIMEOUT = 0x00000102
+_ERROR_ACCESS_DENIED = 5
+
+
+def _windows_pid_alive(pid: int) -> bool:
+    """Whether ``pid`` is a running process on Windows, asked without touching it.
+
+    ``os.kill(pid, 0)`` cannot ask this here, and is not safe to try. CPython's
+    ``os_kill_impl`` (Modules/posixmodule.c) tests ``sig == CTRL_C_EVENT ||
+    sig == CTRL_BREAK_EVENT`` before anything else and ``CTRL_C_EVENT`` is 0, so signal 0
+    becomes ``GenerateConsoleCtrlEvent(CTRL_C_EVENT, pid)``: a real Ctrl+C aimed at that
+    console group, which arrives as KeyboardInterrupt in us whenever the target shares our
+    console. When that call fails the C code does not return either — it falls through to
+    ``OpenProcess(PROCESS_ALL_ACCESS, ...)`` and ``TerminateProcess(handle, sig)``, which
+    ends the process. No signal number merely asks, so nothing here goes near ``os.kill``.
+
+    ``OpenProcess`` alone would not answer it: a pid stays openable after the process has
+    exited, for as long as anything still holds a handle to it. The zero-length wait is what
+    separates running from exited. Being denied the handle means the process is someone
+    else's, not that it is gone — the same answer POSIX gives through ``PermissionError``.
+    """
+    try:
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        # Handles are pointer-sized; the default ``c_int`` restype would truncate one.
+        kernel32.OpenProcess.restype = ctypes.c_void_p
+        kernel32.OpenProcess.argtypes = (ctypes.c_uint32, ctypes.c_int, ctypes.c_uint32)
+        kernel32.WaitForSingleObject.restype = ctypes.c_uint32
+        kernel32.WaitForSingleObject.argtypes = (ctypes.c_void_p, ctypes.c_uint32)
+        kernel32.CloseHandle.argtypes = (ctypes.c_void_p,)
+        handle = kernel32.OpenProcess(_SYNCHRONIZE, 0, pid)
+        if not handle:
+            return ctypes.get_last_error() == _ERROR_ACCESS_DENIED
+        try:
+            return kernel32.WaitForSingleObject(handle, 0) == _WAIT_TIMEOUT
+        finally:
+            kernel32.CloseHandle(handle)
+    except OSError:
+        # No kernel32, or a call that could not be made at all: the same answer a POSIX
+        # OSError earns below, because nothing here is evidence that anything is running.
+        return False
+
+
 def pid_alive(pid: int) -> bool:
     if not isinstance(pid, int) or pid <= 0:
         return False
+    if os.name == "nt":
+        return _windows_pid_alive(pid)
     try:
         os.kill(pid, 0)
     except ProcessLookupError:
@@ -175,17 +225,22 @@ def is_wsl() -> bool:
 def _launchers(url: str) -> list[tuple[str, list[str]]]:
     """The mechanisms to try, in the order that works on this platform.
 
-    WSL leads with the two escape hatches because the generic path resolves to ``gio``
-    there, which cannot open an http URL at all. macOS keeps ``open`` and a real Linux
-    desktop keeps ``xdg-open``; ``webbrowser`` is tried last everywhere, by ``open_browser``
-    itself, so a platform whose launchers are all missing still gets its default browser.
+    Windows has one launcher every install carries: ``start``, which hands a URL to the
+    default browser. It is a ``cmd.exe`` built-in rather than a program, so it is reached
+    through ``cmd /c``, with an empty first argument so the URL is not read as a window
+    title. WSL leads with the two escape hatches — ``wslview``, then that same ``cmd.exe``
+    — because the generic path resolves to ``gio`` there, which cannot open an http URL at
+    all. macOS keeps ``open`` and a real Linux desktop keeps ``xdg-open``; ``webbrowser`` is
+    tried last everywhere, by ``open_browser`` itself, so a platform whose launchers are
+    all missing still gets its default browser.
     """
     if sys.platform == "darwin":
         return [("open", ["open", url])]
-    if os.name == "nt":
-        return []
+    windows = ("cmd.exe", ["cmd.exe", "/c", "start", "", url])
+    if sys.platform == "win32":
+        return [windows]
     if is_wsl():
-        return [("wslview", ["wslview", url]), ("cmd.exe", ["cmd.exe", "/c", "start", "", url])]
+        return [("wslview", ["wslview", url]), windows]
     return [("xdg-open", ["xdg-open", url]), ("gio", ["gio", "open", url])]
 
 

@@ -259,8 +259,10 @@ def _reference_docs(root: Path) -> list[str]:
     """What ``rglob`` plus a filter found, which is what the pruning walk replaced."""
     skipped = catalog.excluded_roots()
     found: list[str] = []
-    for path in sorted(root.rglob("*.md")):
+    for path in root.rglob("*.md"):
         relative = path.relative_to(root)
+        if path.suffix != ".md":  # rglob matches case-insensitively on Windows; the walk does not
+            continue
         if any(part in catalog.SKIP_DIRS for part in relative.parts):
             continue
         if relative.parts and relative.parts[0] in skipped:
@@ -268,7 +270,10 @@ def _reference_docs(root: Path) -> list[str]:
         if not path.is_file():
             continue
         found.append(relative.as_posix())
-    return found
+    # The walk orders by the posix relative path; sorting ``Path`` objects would order by
+    # the host's spelling instead, which on Windows folds case and puts ``business`` ahead
+    # of ``CLAUDE.md``.
+    return sorted(found)
 
 
 def test_the_pruning_walk_finds_exactly_what_the_filtered_one_found(brain: Path) -> None:

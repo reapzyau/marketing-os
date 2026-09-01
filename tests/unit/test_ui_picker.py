@@ -271,9 +271,11 @@ def test_mac_asks_finder_through_osascript(tmp_path: Path) -> None:
     assert answer["path"] == "/Users/you/Brains" and answer["backend"] == "macos"
     (argv,) = run.calls
     assert argv[:2] == ["osascript", "-e"]
+    # AppleScript doubles a backslash inside a string, so a Windows tmp_path arrives escaped.
+    quoted = str(tmp_path).replace("\\", "\\\\")
     assert argv[2] == (
         f'POSIX path of (choose folder with prompt "{picker.PROMPT}" '
-        f'default location POSIX file "{tmp_path}")'
+        f'default location POSIX file "{quoted}")'
     )
 
 

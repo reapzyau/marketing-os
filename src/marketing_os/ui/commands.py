@@ -22,6 +22,8 @@ defences, either of which is sufficient, close that:
 from __future__ import annotations
 
 import shlex
+import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -232,5 +234,14 @@ def build_argv(command: Any, args: Any = None) -> list[str]:
 
 
 def command_line(argv: list[str]) -> str:
-    """The copy-pasteable terminal equivalent of a dispatched argv list."""
+    """The copy-pasteable terminal equivalent of a dispatched argv list.
+
+    Quoted for the shell on this machine. ``shlex`` speaks POSIX, where a backslash is an
+    escape, so it would wrap every Windows path in single quotes that neither cmd.exe nor
+    PowerShell reads as a path. On Windows ``list2cmdline`` follows the CreateProcess rules
+    both of them accept instead — closer to what the shell wants, not shell-safe: it quotes
+    spaces and quotes, and leaves cmd's own metacharacters such as ``&`` and ``%`` alone.
+    """
+    if sys.platform == "win32":
+        return "mos " + subprocess.list2cmdline(argv)
     return "mos " + shlex.join(argv)
