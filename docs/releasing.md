@@ -101,26 +101,26 @@ git pull --ff-only
 Confirm the version that is about to be published, and that the name is still free:
 
 ```bash
-grep '^version' pyproject.toml                                                     # version = "0.2.0"
+grep '^version' pyproject.toml                                                     # version = "0.3.0"
 curl -s -o /dev/null -w '%{http_code}\n' https://pypi.org/pypi/marketing-os/json   # still 404
 ```
 
-Move the `## [Unreleased]` heading in `CHANGELOG.md` to `## [0.2.0] - YYYY-MM-DD` and commit
+Move the `## [Unreleased]` heading in `CHANGELOG.md` to `## [0.3.0] - YYYY-MM-DD` and commit
 that. The `Changelog` URL in `pyproject.toml` points at that file on `main`, so it is what
 anyone arriving from the PyPI sidebar reads.
 
 Then tag and push:
 
 ```bash
-git tag -a v0.2.0 -m "marketing-os 0.2.0"
+git tag -a v0.3.0 -m "marketing-os 0.3.0"
 git push origin main
-git push origin v0.2.0
+git push origin v0.3.0
 ```
 
 The tag must be `v` followed by the exact version in `pyproject.toml`. If they disagree, the
 `build` job fails and says so before anything reaches PyPI — the version is read from
-`pyproject.toml`, never from the tag, so without that check a `v0.2.1` tag would quietly
-publish `0.2.0` and burn the wrong number.
+`pyproject.toml`, never from the tag, so without that check a `v0.3.1` tag would quietly
+publish `0.3.0` and burn the wrong number.
 
 ## 4. Verify it worked
 
@@ -142,7 +142,7 @@ source checkout on any path, and make it build a brain:
 
 ```bash
 pipx install marketing-os
-mos --version                                              # mos 0.2.0
+mos --version                                              # mos 0.3.0
 mos onboard /tmp/release-check --name "Release Check" --mode in-house --yes
 mos doctor /tmp/release-check --json
 ls -a /tmp/release-check /tmp/release-check/.obsidian    # dotfiles and vault config present

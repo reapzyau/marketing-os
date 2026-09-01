@@ -11,8 +11,15 @@ the same parser, so a brain built one way is identical to a brain built the othe
 
 ## 1. Install the CLI
 
-The engine has never been published: there is no `marketing-os` on PyPI and no release tag,
-so `pipx install marketing-os` fails with nothing to resolve. Install from a source checkout:
+`marketing-os` is on PyPI. pipx puts `mos` on your path in an environment of its own:
+
+```bash
+pipx install marketing-os
+```
+
+If you are working on the engine itself, install from a source checkout instead. It puts the
+same `mos` on your path from the working tree, so edits show up without reinstalling, and
+every command in this guide behaves identically either way:
 
 ```bash
 git clone https://github.com/reapzyau/marketing-os
@@ -26,25 +33,9 @@ Check it is available:
 mos --version
 ```
 
-You should see a line like `mos 0.2.0` — the version in `pyproject.toml`, not a released one.
-
-Once the first release lands, `pipx install marketing-os` replaces those three lines and the
-rest of this guide is unchanged: pipx puts the same `mos` on your path, and every command
-below behaves identically. It is not a matter of time passing — it takes a `v0.2.0` tag
-pushed to this repository plus a one-time trusted-publishing setup on PyPI, both of which
-are written down in [releasing.md](releasing.md). Ask PyPI whether that has happened rather
-than trusting this page to be current:
-
-```bash
-curl -s -o /dev/null -w '%{http_code}\n' https://pypi.org/pypi/marketing-os/json
-```
-
-`404` means keep reading here. `200` means the release landed, and `pipx install marketing-os`
-is the shorter way in.
-
-Because you are on the checkout, every command in this guide exists. `mos ui`, `mos attach`
-and `mos assist` are the newest three; if `mos ui --help` answers `invalid choice: 'ui'` you
-are on an older checkout, and section 3 will not work until you pull.
+You should see `mos 0.3.0`. `mos ui`, `mos attach` and `mos assist` are the newest three
+commands; if `mos ui --help` answers `invalid choice: 'ui'` you are on an older install, and
+section 3 will not work until you upgrade (`pipx upgrade marketing-os`, or pull the checkout).
 
 ## 2. Install the bootstrap skills globally
 

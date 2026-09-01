@@ -5,6 +5,8 @@ All notable changes to marketing-os are recorded here. Versions follow
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-02 — Local app
+
 ### Added
 
 - **`mos status` finds the context a brain already holds, wherever its owner filed it.** A
