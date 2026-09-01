@@ -1,7 +1,6 @@
 import contextlib
 import json
 import os
-import shlex
 import socket
 import subprocess
 import threading
@@ -50,6 +49,16 @@ PLANNED_ALLOWLIST = {
     "context show",
     "context set",
 }
+
+#: A full path, spelled the way the platform running these tests spells one. The probe asks
+#: pathlib the same question the guard asks, because that is what "full path" means here:
+#: on Windows a drive is part of it, so "/tmp/brain" is relative to the current drive.
+_WINDOWS_HERE = Path("C:/brain").is_absolute()
+FULL_PATH = "C:/brain" if _WINDOWS_HERE else "/tmp/brain"
+#: A full path as the *other* platform spells one, which is a relative path on this one.
+FOREIGN_FULL_PATH = "/home/you/brain" if _WINDOWS_HERE else "C:/Users/you/Desktop"
+#: How ``command_line`` quotes a value with a space in it on this platform.
+QUOTE = '"' if _WINDOWS_HERE else "'"
 
 
 def _home(monkeypatch, tmp_path: Path) -> Path:
@@ -276,9 +285,31 @@ def test_the_windows_probe_never_raises(monkeypatch) -> None:
     assert ui_state._windows_pid_alive(4321) is False
 
 
-def _script(path: Path, body: str) -> Path:
-    """A stand-in launcher. Real process, real exit code, real streams."""
-    path.write_text("#!/bin/sh\n" + body, encoding="utf-8")
+def _script(path: Path, *, out: str = "", err: str = "", code: int = 0) -> Path:
+    """A stand-in launcher. Real process, real exit code, real streams.
+
+    A shell script here; on Windows a batch file, the one kind of script ``CreateProcess``
+    runs by itself, so the launcher is a real process there too. The ``.cmd`` suffix is what
+    tells Windows to do that, so the path handed back — not the one asked for — is the one
+    to run.
+    """
+    if _WINDOWS_HERE:
+        path = path.with_suffix(".cmd")
+        lines = ["@echo off"]
+        if out:
+            lines.append(f"echo {out}")
+        if err:
+            lines.append(f"echo {err} 1>&2")
+        lines.append(f"exit /b {code}")
+        path.write_text("\r\n".join(lines) + "\r\n", encoding="ascii")
+        return path
+    lines = ["#!/bin/sh"]
+    if out:
+        lines.append(f'echo "{out}"')
+    if err:
+        lines.append(f'echo "{err}" >&2')
+    lines.append(f"exit {code}")
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     path.chmod(0o755)
     return path
 
@@ -324,7 +355,7 @@ def test_open_browser_refuses_a_non_loopback_url(monkeypatch) -> None:
 
 def test_a_browser_that_only_claims_success_is_not_accepted(monkeypatch, tmp_path: Path) -> None:
     """The WSL bug: ``gio`` exits 2, ``webbrowser.open`` returns True, nothing opens."""
-    gio = _script(tmp_path / "gio", 'echo "gio: $3: Operation not supported" >&2\nexit 2\n')
+    gio = _script(tmp_path / "gio", err="gio: Operation not supported", code=2)
     browser = _SpawnOnlyBrowser(gio)
     monkeypatch.setattr("marketing_os.ui.state._launchers", lambda url: [], raising=False)
     monkeypatch.setattr("marketing_os.ui.state.webbrowser.get", lambda *a, **k: browser)
@@ -336,8 +367,7 @@ def test_a_browser_that_only_claims_success_is_not_accepted(monkeypatch, tmp_pat
 def test_no_browser_output_can_reach_our_streams(monkeypatch, tmp_path: Path, capfd) -> None:
     """A chatty browser used to print over the ``--json`` envelope. It gets captured now."""
     gio = _script(
-        tmp_path / "gio",
-        'echo "gio: chatter on stdout"\necho "gio: $3: Operation not supported" >&2\nexit 2\n',
+        tmp_path / "gio", out="gio: chatter on stdout", err="gio: Operation not supported", code=2
     )
     browser = _SpawnOnlyBrowser(gio, run=True)
     monkeypatch.setattr("marketing_os.ui.state._launchers", lambda url: [], raising=False)
@@ -353,20 +383,41 @@ def test_no_browser_output_can_reach_our_streams(monkeypatch, tmp_path: Path, ca
 
 def test_a_launcher_that_writes_to_stderr_does_not_count(monkeypatch, tmp_path: Path) -> None:
     """Exit zero is not enough: ``cmd.exe`` exits zero while warning that it did nothing."""
-    noisy = _script(tmp_path / "wslview", 'echo "UNC paths are not supported." >&2\nexit 0\n')
-    quiet = _script(tmp_path / "cmd.exe", "exit 0\n")
+    noisy = _script(tmp_path / "wslview", err="UNC paths are not supported.")
+    quiet = _script(tmp_path / "cmd.exe")
     monkeypatch.setattr(
         "marketing_os.ui.state._launchers",
         lambda url: [("wslview", [str(noisy), url]), ("cmd.exe", [str(quiet), url])],
         raising=False,
     )
     monkeypatch.setattr("marketing_os.ui.state.webbrowser.get", lambda *a, **k: None)
+    # Were the launchers to fail, the fallback would open a real browser on this machine.
+    monkeypatch.setattr("marketing_os.ui.state.webbrowser.open", lambda *a, **k: False)
 
     assert ui_state.open_browser("http://127.0.0.1:4321/") == "cmd.exe"
 
 
+def test_cmd_exe_runs_from_its_own_folder_and_nothing_else_moves(monkeypatch, tmp_path) -> None:
+    """From a folder Windows cannot see, ``cmd.exe`` warns on stderr, which reads as failure
+    here; so it runs from its own folder. Every other launcher keeps ours."""
+    url = "http://127.0.0.1:4321/"
+    ran: list[dict] = []
+
+    def run(argv, **kwargs):
+        ran.append(kwargs)
+        return subprocess.CompletedProcess(argv, 0, stdout=b"", stderr=b"")
+
+    monkeypatch.setattr("marketing_os.ui.state.subprocess.run", run)
+    assert ui_state._launch([str(tmp_path / "cmd.exe"), "/c", "start", "", url]) is True
+    assert ui_state._launch([str(tmp_path / "xdg-open"), url]) is True
+    assert [kwargs["cwd"] for kwargs in ran] == [str(tmp_path), None]
+
+
 def test_a_text_browser_is_never_treated_as_opening_the_app(monkeypatch, tmp_path: Path) -> None:
-    lynx = _SpawnOnlyBrowser(_script(tmp_path / "lynx", "exit 0\n"))
+    """Refused by name, before anything runs: a text browser that would exit zero still
+    only ever opens the app inside this terminal."""
+    lynx = _SpawnOnlyBrowser(tmp_path / "lynx")
+    monkeypatch.setattr("marketing_os.ui.state._launch", _explode)
     monkeypatch.setattr("marketing_os.ui.state._launchers", lambda url: [], raising=False)
     monkeypatch.setattr("marketing_os.ui.state.webbrowser.get", lambda *a, **k: lynx)
     monkeypatch.setattr("marketing_os.ui.state.webbrowser.open", lynx.open)
@@ -381,6 +432,15 @@ def test_wsl_reaches_the_windows_launchers_before_the_generic_path(monkeypatch) 
         "wslview",
         "cmd.exe",
     ]
+
+
+def test_windows_native_gets_start_through_cmd_and_nothing_else(monkeypatch) -> None:
+    """The one launcher every Windows carries. Empty title argument, or ``start`` reads the
+    URL as the window name and opens nothing."""
+    monkeypatch.setattr("marketing_os.ui.state.sys.platform", "win32")
+    monkeypatch.setattr("marketing_os.ui.state.is_wsl", _explode)
+    url = "http://127.0.0.1:4321/"
+    assert ui_state._launchers(url) == [("cmd.exe", ["cmd.exe", "/c", "start", "", url])]
 
 
 def test_wsl_is_detected_from_any_one_marker(monkeypatch, tmp_path: Path) -> None:
@@ -450,44 +510,44 @@ def test_describe_exposes_every_allowlisted_command() -> None:
 def test_build_argv_maps_a_bag_of_arguments_onto_the_real_cli() -> None:
     argv = build_argv(
         "onboard",
-        {"path": "/tmp/brain", "name": "Acme Co", "mode": "agency", "yes": True},
+        {"path": FULL_PATH, "name": "Acme Co", "mode": "agency", "yes": True},
     )
-    assert argv == ["onboard", "--name", "Acme Co", "--mode", "agency", "--yes", "--", "/tmp/brain"]
+    assert argv == ["onboard", "--name", "Acme Co", "--mode", "agency", "--yes", "--", FULL_PATH]
     assert command_line(argv) == (
-        "mos onboard --name 'Acme Co' --mode agency --yes -- /tmp/brain"
+        f"mos onboard --name {QUOTE}Acme Co{QUOTE} --mode agency --yes -- {FULL_PATH}"
     )
 
 
 def test_build_argv_handles_nested_subcommands_and_numbers() -> None:
-    assert build_argv("index sync", {"path": "/tmp/brain", "plan": True}) == [
+    assert build_argv("index sync", {"path": FULL_PATH, "plan": True}) == [
         "index",
         "sync",
         "--plan",
         "--",
-        "/tmp/brain",
+        FULL_PATH,
     ]
-    assert build_argv("query", {"question": "pricing", "path": "/tmp/brain", "limit": 3}) == [
+    assert build_argv("query", {"question": "pricing", "path": FULL_PATH, "limit": 3}) == [
         "query",
         "--limit",
         "3",
         "--",
         "pricing",
-        "/tmp/brain",
+        FULL_PATH,
     ]
 
 
 def test_build_argv_omits_flags_that_are_not_true() -> None:
-    assert build_argv("validate", {"path": "/tmp/brain", "strict": False}) == [
+    assert build_argv("validate", {"path": FULL_PATH, "strict": False}) == [
         "validate",
         "--",
-        "/tmp/brain",
+        FULL_PATH,
     ]
 
 
-@pytest.mark.parametrize("value", [".", "relative/brain", "C:/Users/you/Desktop", "brain"])
+@pytest.mark.parametrize("value", [".", "relative/brain", FOREIGN_FULL_PATH, "brain"])
 def test_build_argv_refuses_a_path_that_is_not_a_full_path(value: str) -> None:
     """The CLI resolves a relative path against its own cwd, which for the app is wherever
-    the server was started; a Windows spelling on this side of WSL is relative too."""
+    the server was started; the other platform's spelling of a full path is relative too."""
     with pytest.raises(CommandError, match="must be a full path") as caught:
         build_argv("status", {"path": value})
     assert caught.value.code == "bad-path"
@@ -522,7 +582,7 @@ def test_build_argv_rejects_a_missing_required_positional() -> None:
 
 def test_build_argv_refuses_a_positional_gap() -> None:
     with pytest.raises(CommandError, match="before"):
-        build_argv("ingest", {"path": "/tmp/brain", "yes": True})
+        build_argv("ingest", {"path": FULL_PATH, "yes": True})
 
 
 def test_build_argv_refuses_both_mutation_flags() -> None:
@@ -542,7 +602,7 @@ def _benign(spec) -> dict:
     """The smallest argument bag that builds a valid argv for one command."""
     args: dict = {name: "value" for name in spec.positionals}
     if "path" in args:  # a path must be a full path; the other positionals are free text
-        args["path"] = "/tmp/value"
+        args["path"] = FULL_PATH
     args.update({name: "value" for name in spec.required if name in spec.options})
     if "name" in spec.options:  # mos onboard requires --name at the parser
         args["name"] = "Acme Co"
@@ -824,13 +884,16 @@ def browser() -> dict:
         }
         path = Path(scratch) / "fixture.json"
         path.write_text(json.dumps(fixture), encoding="utf-8")
+        # The harness writes UTF-8 whatever the console's code page; an em dash read as
+        # cp1252 is three characters.
         done = subprocess.run(
-            [node, str(HARNESS), str(path)], capture_output=True, text=True, timeout=180
+            [node, str(HARNESS), str(path)], capture_output=True, encoding="utf-8", timeout=180
         )
     assert done.returncode == 0, done.stderr
     results = json.loads(done.stdout)
     for name, payload in results.items():
         assert "error" not in payload, f"{name}: {payload.get('error')}"
+    results["root"] = fixture["state"]["root"]  # the fixture brain, as this machine spells it
     return results
 
 
@@ -1028,8 +1091,12 @@ def test_the_sidebar_lists_every_brain_by_name_and_never_by_path(browser: dict) 
     assert listed["hidden"] is False
     assert [row["name"] for row in listed["rows"]] == ["Test Gym", "Second Co", "Gone Co", "Old Co"]
     assert "/" not in listed["visible"], "paths ride in titles only"
-    for row in listed["rows"]:
-        assert row["title"].startswith("/"), "the path is on the title, for the tooltip"
+    assert [row["title"] for row in listed["rows"]] == [
+        browser["root"],
+        "/home/you/Desktop/second",
+        "/home/you/Desktop/gone",
+        "/home/you/Desktop/old",
+    ], "the path is on the title, for the tooltip"
     assert listed["tabs"] == ["true", "false"] and listed["tabsShown"] is True
     assert listed["topbar"] == "Test Gym"
 
@@ -1195,8 +1262,10 @@ def test_browse_reports_a_missing_folder_with_the_nearest_parent(tree: Path) -> 
 
 
 def test_browse_expands_the_home_tilde(tree: Path, monkeypatch) -> None:
-    # expanduser reads the environment, which is also what the operator's shell does.
+    # expanduser reads the environment, which is also what the operator's shell does:
+    # HOME on POSIX, USERPROFILE on Windows.
     monkeypatch.setenv("HOME", str(tree))
+    monkeypatch.setenv("USERPROFILE", str(tree))
     with _serving(tree) as server:
         _, body = _post(server, "/api/browse", {"path": "~/plain"})
     assert body["path"] == str(tree / "plain")
@@ -1565,6 +1634,7 @@ def test_run_refuses_a_windows_path_where_wslpath_cannot_convert_it(
     tree: Path, monkeypatch
 ) -> None:
     monkeypatch.setattr("marketing_os.ui.server.windows_to_wsl", lambda value: None)
+    before = sorted(tree.iterdir())
     with _serving(tree) as server:
         status, body = _post(
             server,
@@ -1573,7 +1643,7 @@ def test_run_refuses_a_windows_path_where_wslpath_cannot_convert_it(
         )
     assert status == 400
     assert body["envelope"]["findings"][0]["code"] == "bad-path"
-    assert not (tree / "C:").exists(), "nothing is planned relative to the server's cwd"
+    assert sorted(tree.iterdir()) == before, "nothing is planned relative to the server's cwd"
 
 
 def test_run_refuses_a_windows_path_outside_wsl(tree: Path, monkeypatch) -> None:
@@ -1581,7 +1651,7 @@ def test_run_refuses_a_windows_path_outside_wsl(tree: Path, monkeypatch) -> None
     monkeypatch.setattr("marketing_os.ui.server.windows_to_wsl", lambda value: value)
     with _serving(tree) as server:
         status, body = _post(
-            server, "/api/run", {"command": "status", "args": {"path": "C:/Users/you/Desktop"}}
+            server, "/api/run", {"command": "status", "args": {"path": FOREIGN_FULL_PATH}}
         )
     assert status == 400
     assert body["envelope"]["findings"][0]["code"] == "bad-path"
@@ -1607,7 +1677,7 @@ def test_run_converts_a_windows_path_under_wsl_before_dispatch(
     assert seen == ["C:\\Users\\you\\Desktop\\brain"]
     assert body["envelope"]["repo"] == str(tree / "brain")
     assert body["envelope"]["business"]["name"] == "Browse Co"
-    assert body["command_line"] == f"mos status -- {shlex.quote(str(tree / 'brain'))}"
+    assert body["command_line"] == f"mos status -- {tree / 'brain'}"
 
 
 def test_a_read_only_command_does_not_wait_for_the_server_lock(tree: Path) -> None:

@@ -12,7 +12,7 @@ import re
 import subprocess
 from collections import deque
 from collections.abc import Callable, Iterable, Mapping
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from marketing_os.core.attach import legacy_summary
@@ -207,7 +207,9 @@ def windows_to_wsl(
         )
     except (OSError, subprocess.SubprocessError, ValueError, TypeError):
         return None
-    if converted is None or not Path(converted).is_absolute():
+    # ``wslpath -u`` answers with a path on the Linux side, so it is judged as one whatever
+    # the host: a ``WindowsPath`` would call ``/mnt/c/...`` relative for want of a drive.
+    if converted is None or not PurePosixPath(converted).is_absolute():
         return None
     return converted
 

@@ -225,17 +225,22 @@ def is_wsl() -> bool:
 def _launchers(url: str) -> list[tuple[str, list[str]]]:
     """The mechanisms to try, in the order that works on this platform.
 
-    WSL leads with the two escape hatches because the generic path resolves to ``gio``
-    there, which cannot open an http URL at all. macOS keeps ``open`` and a real Linux
-    desktop keeps ``xdg-open``; ``webbrowser`` is tried last everywhere, by ``open_browser``
-    itself, so a platform whose launchers are all missing still gets its default browser.
+    Windows has one launcher every install carries: ``start``, which hands a URL to the
+    default browser. It is a ``cmd.exe`` built-in rather than a program, so it is reached
+    through ``cmd /c``, with an empty first argument so the URL is not read as a window
+    title. WSL leads with the two escape hatches — ``wslview``, then that same ``cmd.exe``
+    — because the generic path resolves to ``gio`` there, which cannot open an http URL at
+    all. macOS keeps ``open`` and a real Linux desktop keeps ``xdg-open``; ``webbrowser`` is
+    tried last everywhere, by ``open_browser`` itself, so a platform whose launchers are
+    all missing still gets its default browser.
     """
     if sys.platform == "darwin":
         return [("open", ["open", url])]
-    if os.name == "nt":
-        return []
+    windows = ("cmd.exe", ["cmd.exe", "/c", "start", "", url])
+    if sys.platform == "win32":
+        return [windows]
     if is_wsl():
-        return [("wslview", ["wslview", url]), ("cmd.exe", ["cmd.exe", "/c", "start", "", url])]
+        return [("wslview", ["wslview", url]), windows]
     return [("xdg-open", ["xdg-open", url]), ("gio", ["gio", "open", url])]
 
 
