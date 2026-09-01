@@ -19,7 +19,12 @@ What that costs us in guarantees is paid back in hardening, all of it here:
 * **Nothing outlives the turn.** On POSIX the child is started in its own session and
   stopped by signalling its whole process group, because a real runtime is a launcher:
   terminating only the process we spawned leaves its node children running past the
-  deadline. Windows has no process group to signal here and stops the direct child.
+  deadline. Windows has no process group to signal here, so the tree is stopped by
+  ``taskkill /F /T`` instead — a ``.cmd`` runtime is executed through an implicit
+  ``cmd.exe``, which makes the runtime itself a grandchild that ``TerminateProcess``
+  would leave running, holding the scratch directory as its working directory. The
+  scratch directory is then removed best-effort rather than fatally, because a runtime
+  can wedge for reasons this module does not get a say in.
 * **The child's streams cannot contaminate ours.** Its stdout and stderr go to files in a
   scratch directory, never to an inherited descriptor, so ``mos assist ask --json`` stays
   exactly one JSON document no matter what the runtime prints.
@@ -226,6 +231,9 @@ _SIGKILL = getattr(signal, "SIGKILL", signal.SIGTERM)
 #: POSIX only. ``Popen`` ignores it on Windows, but saying so here keeps the intent plain.
 _NEW_SESSION = os.name != "nt"
 
+#: Windows only. There is no process group to signal there, so the tree is killed by PID.
+_TREE_KILL = os.name == "nt"
+
 
 def _size(path: Path) -> int:
     try:
@@ -256,19 +264,59 @@ def _signal_group(process: subprocess.Popen[bytes], sig: int) -> bool:
     return True
 
 
+def _kill_tree(process: subprocess.Popen[bytes]) -> bool:
+    """Kill the child and everything under it on Windows. ``False`` when that is not here.
+
+    ``Popen.terminate`` is ``TerminateProcess`` on Windows, and that ends exactly one
+    process. It is never enough for this child: a ``.cmd`` or ``.bat`` runtime is executed
+    through an implicit ``cmd.exe``, so the runtime itself is a grandchild, and stopping
+    the direct child leaves it running with the scratch directory as its working
+    directory — which Windows then refuses to remove. ``taskkill /T`` walks the
+    parent-child chain, which is a weaker promise than ``killpg``'s. A POSIX process group
+    is inherited and outlives its parent, so ``killpg`` still reaches an orphan; Windows
+    keeps no such link once an intermediate process exits, so a descendant orphaned that
+    way is invisible to ``/T`` and escapes. Only a job object closes that gap, and it costs
+    roughly fifty lines of ctypes nobody here can execute — a worse bet, on a platform this
+    engine cannot test, than one call with one failure mode. Revisit it if an orphaned
+    runtime is ever actually observed.
+
+    ``taskkill.exe`` is addressed absolutely under ``%SystemRoot%`` rather than resolved
+    off ``PATH``, because a ``PATH`` this module does not control is not somewhere to look
+    up the program that gets to kill things.
+    """
+    if not _TREE_KILL:
+        return False
+    # Upper case because ``os.environ`` folds keys to upper case on Windows, which is the
+    # only platform that reaches this line and the only one where the name is set at all.
+    system_root = os.environ.get("SYSTEMROOT") or r"C:\Windows"
+    taskkill = os.path.join(system_root, "System32", "taskkill.exe")
+    try:
+        killed = subprocess.run(  # noqa: S603 - fixed argv, absolute path, no shell
+            [taskkill, "/F", "/T", "/PID", str(process.pid)],
+            shell=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=10,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return killed.returncode == 0
+
+
 def _stop(process: subprocess.Popen[bytes]) -> None:
     """Stop the child, and with it everything the child started.
 
     A real runtime is a launcher: ``claude`` runs node, which runs more node. Stopping only
     the process we spawned leaves that tree running past the deadline, which is exactly the
     runaway the deadline exists to prevent. The child is given its own session at spawn so
-    that tree shares one process group, and this signals the group.
+    that tree shares one process group, and this signals the group. Windows has no such
+    group, so the tree is killed by PID there; the direct stop is the last resort on both.
     """
     for sig, direct in ((signal.SIGTERM, process.terminate), (_SIGKILL, process.kill)):
         if process.poll() is not None:
             return
         try:
-            if not _signal_group(process, sig):
+            if not _signal_group(process, sig) and not _kill_tree(process):
                 direct()
             process.wait(timeout=5)
         except (OSError, subprocess.SubprocessError):
@@ -313,8 +361,21 @@ def run_child(argv: list[str], prompt: str, *, timeout: float, max_bytes: int) -
     The child is given a scratch working directory of its own, which is removed when this
     returns, so a runtime that decides to write a file writes it somewhere disposable and
     never inside the operator's brain.
+
+    That removal is best-effort, and deliberately not ``TemporaryDirectory``'s. Killing the
+    tree is what keeps the directory free, but a runtime can still wedge for reasons that
+    are not ours to fix, and on Windows a directory a live process is sitting in cannot be
+    removed at all. ``TemporaryDirectory`` turns exactly that into a crash: its cleanup
+    answers a ``PermissionError`` on a directory by unlinking it, and when the unlink
+    raises ``PermissionError`` too — which on Windows is what unlinking a directory does —
+    it calls itself on that same directory and recurses. On 3.10 the recursion is
+    unbounded and ``ignore_cleanup_errors`` never reaches the branch; later interpreters
+    bound the loop rather than remove the failure. A scratch directory that outlives us is
+    litter in a temp folder the machine already cleans up; failing a turn over it, or
+    exhausting the stack, would be a fault of ours, so this swallows instead.
     """
-    with tempfile.TemporaryDirectory(prefix="mos-assist-", ignore_cleanup_errors=True) as scratch:
+    scratch = tempfile.mkdtemp(prefix="mos-assist-")
+    try:
         work = Path(scratch)
         prompt_file = work / "prompt.txt"
         prompt_file.write_text(prompt, encoding="utf-8")
@@ -347,6 +408,8 @@ def run_child(argv: list[str], prompt: str, *, timeout: float, max_bytes: int) -
             _read(err_file, MAX_STDERR_BYTES),
             reason,
         )
+    finally:
+        shutil.rmtree(scratch, ignore_errors=True)
 
 
 # --- status -------------------------------------------------------------------------

@@ -1,5 +1,6 @@
 import contextlib
 import json
+import os
 import shlex
 import socket
 import subprocess
@@ -8,6 +9,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -133,6 +135,145 @@ def test_unreadable_state_is_discarded(monkeypatch, tmp_path: Path) -> None:
     assert state is None
     assert cleaned is True
     assert not ui_state.state_path().exists()
+
+
+# --- pid liveness -------------------------------------------------------------------
+
+# Win32 values, written out here rather than read from the module, so these tests pin the
+# contract instead of agreeing with whatever the module happens to say.
+_SYNCHRONIZE = 0x00100000
+_WAIT_OBJECT_0 = 0x00000000
+_WAIT_TIMEOUT = 0x00000102
+_ERROR_ACCESS_DENIED = 5
+_ERROR_INVALID_PARAMETER = 87
+
+
+class _Win32Call:
+    """One kernel32 export: records the arguments it was handed, returns a set answer."""
+
+    def __init__(self, result: int = 0) -> None:
+        self.result = result
+        self.calls: list[tuple] = []
+
+    def __call__(self, *args) -> int:
+        self.calls.append(args)
+        return self.result
+
+
+def _fake_ctypes(*, handle: int = 0, wait: int = _WAIT_TIMEOUT, last_error: int = 0):
+    """Stand in for ``ctypes`` so the Windows probe can be run on a machine that is not one.
+
+    ``WinDLL`` does not exist off Windows, so the three kernel32 calls are faked and what
+    gets checked is the decision made from their answers — and which calls were made at all.
+    """
+    kernel32 = SimpleNamespace(
+        OpenProcess=_Win32Call(handle),
+        WaitForSingleObject=_Win32Call(wait),
+        CloseHandle=_Win32Call(1),
+    )
+    fake = SimpleNamespace(
+        WinDLL=lambda name, use_last_error=False: kernel32,
+        get_last_error=lambda: last_error,
+        c_void_p=int,
+        c_uint32=int,
+        c_int=int,
+    )
+    return fake, kernel32
+
+
+def _explode(*args, **kwargs):
+    raise AssertionError(f"the wrong platform path ran: {args}")
+
+
+def test_pid_alive_answers_about_real_processes() -> None:
+    """The POSIX contract, unchanged: this process is alive, an unused pid is not."""
+    assert ui_state.pid_alive(os.getpid()) is True
+    assert ui_state.pid_alive(_dead_pid()) is False
+    assert ui_state.pid_alive(0) is False
+    assert ui_state.pid_alive(-1) is False
+    assert ui_state.pid_alive("4321") is False
+
+
+def test_pid_alive_on_posix_still_probes_with_signal_zero(monkeypatch) -> None:
+    """The signal number is the whole contract on POSIX; nothing may drift it off zero."""
+    seen: list[tuple[int, int]] = []
+    monkeypatch.setattr(ui_state.os, "name", "posix")
+    monkeypatch.setattr(ui_state.os, "kill", lambda pid, sig: seen.append((pid, sig)))
+    monkeypatch.setattr(ui_state, "_windows_pid_alive", _explode)
+    assert ui_state.pid_alive(4321) is True
+    assert seen == [(4321, 0)]
+
+
+@pytest.mark.parametrize(
+    ("raised", "expected"),
+    [(ProcessLookupError, False), (PermissionError, True), (OSError, False)],
+)
+def test_pid_alive_maps_every_posix_answer(monkeypatch, raised, expected) -> None:
+    def _raise(pid: int, sig: int) -> None:
+        raise raised("from the kernel")
+
+    monkeypatch.setattr(ui_state.os, "name", "posix")
+    monkeypatch.setattr(ui_state.os, "kill", _raise)
+    assert ui_state.pid_alive(4321) is expected
+
+
+def test_pid_alive_never_signals_anything_on_windows(monkeypatch) -> None:
+    """The bug: ``os.kill(pid, 0)`` on Windows is not a probe.
+
+    ``signal.CTRL_C_EVENT`` is 0 and CPython's ``os_kill_impl`` matches the console branch
+    first, so signal 0 becomes ``GenerateConsoleCtrlEvent(CTRL_C_EVENT, pid)`` — a real
+    Ctrl+C into that console group, which ended a Windows pytest run at test 550 with 204
+    tests never executed. Should that call fail, the C code falls through to
+    ``TerminateProcess``. Neither belongs anywhere near a liveness question.
+    """
+    fake, kernel32 = _fake_ctypes(handle=0x1F4, wait=_WAIT_TIMEOUT)
+    monkeypatch.setattr(ui_state.os, "name", "nt")
+    monkeypatch.setattr(ui_state, "ctypes", fake)
+    monkeypatch.setattr(ui_state.os, "kill", _explode)
+
+    assert ui_state.pid_alive(500) is True
+    # SYNCHRONIZE alone: the handle we hold cannot terminate anything even by accident.
+    assert kernel32.OpenProcess.calls == [(_SYNCHRONIZE, 0, 500)]
+
+
+@pytest.mark.parametrize(
+    ("wait", "expected"), [(_WAIT_TIMEOUT, True), (_WAIT_OBJECT_0, False)]
+)
+def test_the_windows_probe_reads_the_wait_and_always_closes_the_handle(
+    monkeypatch, wait, expected
+) -> None:
+    """A pid stays openable after the process exits, so the wait is the real answer."""
+    fake, kernel32 = _fake_ctypes(handle=0x1F4, wait=wait)
+    monkeypatch.setattr(ui_state, "ctypes", fake)
+
+    assert ui_state._windows_pid_alive(4321) is expected
+    assert kernel32.WaitForSingleObject.calls == [(0x1F4, 0)]
+    assert kernel32.CloseHandle.calls == [(0x1F4,)]
+
+
+@pytest.mark.parametrize(
+    ("error", "expected"), [(_ERROR_ACCESS_DENIED, True), (_ERROR_INVALID_PARAMETER, False)]
+)
+def test_a_windows_process_we_cannot_open_is_dead_only_when_it_is_absent(
+    monkeypatch, error, expected
+) -> None:
+    """Denied is somebody else's running process — what ``PermissionError`` means on POSIX."""
+    fake, kernel32 = _fake_ctypes(handle=0, last_error=error)
+    monkeypatch.setattr(ui_state, "ctypes", fake)
+
+    assert ui_state._windows_pid_alive(4321) is expected
+    assert kernel32.WaitForSingleObject.calls == []
+    assert kernel32.CloseHandle.calls == []
+
+
+def test_the_windows_probe_never_raises(monkeypatch) -> None:
+    """``live_state`` calls this on every ``mos ui``; a missing kernel32 is not a crash."""
+
+    def _no_kernel32(name: str, use_last_error: bool = False):
+        raise OSError("could not load kernel32")
+
+    monkeypatch.setattr(ui_state, "ctypes", SimpleNamespace(WinDLL=_no_kernel32))
+    assert ui_state._windows_pid_alive(4321) is False
 
 
 def _script(path: Path, body: str) -> Path:

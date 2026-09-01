@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -765,6 +766,31 @@ def test_the_runtime_without_a_tool_restriction_says_so_rather_than_implying_one
 
 
 def _alive(pid: int) -> bool:
+    """Is that pid still running? Asked without killing it on either platform.
+
+    ``os.kill(pid, 0)`` is not a liveness probe on Windows: there are no signals there, so
+    CPython implements ``os.kill`` as ``TerminateProcess`` for anything that is not a
+    console-control event, and asking the question would be answering it. The Windows
+    branch opens the process for ``SYNCHRONIZE`` instead and asks whether its handle is
+    already signalled, which is what "it has exited" means there.
+    """
+    if os.name == "nt":
+        import ctypes
+
+        synchronize = 0x0010_0000
+        wait_timeout = 0x0000_0102  # still running; WAIT_OBJECT_0 (0) would mean exited
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel32.OpenProcess.restype = ctypes.c_void_p
+        kernel32.OpenProcess.argtypes = [ctypes.c_uint32, ctypes.c_int, ctypes.c_uint32]
+        kernel32.WaitForSingleObject.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
+        kernel32.CloseHandle.argtypes = [ctypes.c_void_p]
+        handle = kernel32.OpenProcess(synchronize, False, pid)
+        if not handle:  # gone, or gone far enough that nothing can be opened on it
+            return False
+        try:
+            return kernel32.WaitForSingleObject(handle, 0) == wait_timeout
+        finally:
+            kernel32.CloseHandle(handle)
     try:
         os.kill(pid, 0)
     except OSError:
@@ -781,16 +807,24 @@ def _positions(text: str, needle: str) -> list[int]:
     return found
 
 
-@pytest.mark.skipif(os.name == "nt", reason="process groups are a POSIX concept")
 def test_a_timeout_stops_the_grandchildren_the_runtime_started(
     runtime, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A real runtime is a launcher; stopping only what we spawned orphans its tree."""
+    """A real runtime is a launcher; stopping only what we spawned orphans its tree.
+
+    This used to be skipped on Windows for want of process groups, which quietly excused
+    the platform from the only rule it was breaking — and where a survivor is worse than
+    an orphan, because it sits in the scratch directory and Windows will not remove a
+    directory a live process is in. The assertion is that the tree is dead, not how: the
+    group signal does it on POSIX, ``taskkill /T`` does it on Windows, and on Windows the
+    grandchild is doubly worth checking because a ``.cmd`` shim is itself run through
+    ``cmd.exe``, so even the runtime is a grandchild there.
+    """
     runtime.install("claude")
     marker = tmp_path / "grandchild.pid"
     monkeypatch.setenv("MOS_FAKE_MODE", "grandchild")
     monkeypatch.setenv("MOS_FAKE_GRANDCHILD", str(marker))
-    our_group = os.getpgid(0)
+    our_group = os.getpgid(0) if hasattr(os, "getpgid") else None
 
     result = ask_turn(brain(tmp_path), "brand")
     assert result["ok"] is False
@@ -802,8 +836,177 @@ def test_a_timeout_stops_the_grandchildren_the_runtime_started(
     while time.monotonic() < deadline and _alive(pid):
         time.sleep(0.05)
     assert not _alive(pid), f"grandchild {pid} outlived the turn that spawned it"
-    # And the group signal went to the child's group, not to the one this engine is in.
-    assert os.getpgid(0) == our_group
+    if our_group is not None:
+        # And the group signal went to the child's group, not to the one this engine is in.
+        assert os.getpgid(0) == our_group
+
+
+def test_the_windows_stop_kills_the_tree_rather_than_the_one_process_we_spawned(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """No Windows runs this, so it pins the call the Windows branch would make.
+
+    The fix is the ``/T``. Without it the stop is ``TerminateProcess`` on one process,
+    which on Windows is the ``cmd.exe`` that a ``.cmd`` runtime is launched through — the
+    runtime is its child, survives, and keeps the scratch directory as its working
+    directory, and the cleanup that follows is what actually reports the failure. The
+    absolute path is pinned too: this suite monkeypatches ``PATH`` all over the place, and
+    so can anything else on an operator's machine.
+
+    Windows is simulated by the two facts that define it here: ``_signal_group`` finds no
+    ``os.killpg`` and so reports failure, and ``_TREE_KILL`` is on. The stop is then driven
+    end to end, so this covers the wiring and not only the helper.
+    """
+    seen: dict = {}
+    process = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+    real_kill = process.kill
+
+    def spy(argv, **kwargs):
+        seen["argv"] = list(argv)
+        seen.update(kwargs)
+        real_kill()  # what taskkill /F /T would have done to the whole tree
+        return subprocess.CompletedProcess(list(argv), 0)
+
+    def refuse(name: str):
+        def boom(*_args, **_kwargs):
+            raise AssertionError(f"the Windows stop must not fall back to {name}()")
+
+        return boom
+
+    try:
+        monkeypatch.setattr(assist, "_TREE_KILL", True)
+        monkeypatch.setattr(assist, "_signal_group", lambda *_args: False)
+        monkeypatch.setattr(assist.subprocess, "run", spy)
+        monkeypatch.setattr(process, "terminate", refuse("terminate"))
+        monkeypatch.setattr(process, "kill", refuse("kill"))
+        assist._stop(process)
+    finally:
+        monkeypatch.undo()
+        real_kill()
+        process.wait()
+
+    assert seen["argv"][0].endswith(os.path.join("System32", "taskkill.exe"))
+    assert os.path.dirname(seen["argv"][0]), "resolved absolutely, never off PATH"
+    assert seen["argv"][1:] == ["/F", "/T", "/PID", str(process.pid)]
+    assert seen["shell"] is False
+
+
+def test_the_windows_stop_falls_back_to_the_direct_child_when_taskkill_cannot_run(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``taskkill.exe`` is a file on a disk this engine does not own, so it may not be there.
+
+    Choosing it over a job object accepts that risk, and this is the bound on it: a missing
+    or failing ``taskkill`` degrades to stopping the direct child, which is what Windows
+    already did, rather than to stopping nothing.
+    """
+
+    def missing(*_args, **_kwargs):
+        raise FileNotFoundError(2, "No such file or directory", "taskkill.exe")
+
+    process = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+    try:
+        monkeypatch.setattr(assist, "_TREE_KILL", True)
+        monkeypatch.setattr(assist, "_signal_group", lambda *_args: False)
+        monkeypatch.setattr(assist.subprocess, "run", missing)
+        assert assist._kill_tree(process) is False
+        assist._stop(process)
+        # Read the verdict here, inside the try. The cleanup below kills the child
+        # unconditionally, so a check after it would pass whatever ``_stop`` did --
+        # including nothing at all.
+        stopped = process.poll() is not None
+    finally:
+        monkeypatch.undo()
+        process.kill()
+        process.wait()
+
+    assert stopped, "the direct child was left running"
+
+
+@pytest.mark.skipif(os.name == "nt", reason="the POSIX stop is what this one pins")
+def test_the_posix_stop_is_still_the_process_group_and_runs_nothing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The Windows tree-kill must not reach the platform that already worked."""
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError(f"the POSIX stop must run no program of its own: {args!r}")
+
+    monkeypatch.setattr(assist.subprocess, "run", forbidden)
+    process = subprocess.Popen(
+        [sys.executable, "-c", "import time; time.sleep(30)"], start_new_session=True
+    )
+    assert assist._kill_tree(process) is False, "there is no tree-kill to reach for here"
+    assist._stop(process)
+    assert process.poll() is not None
+
+
+def test_a_scratch_directory_that_cannot_be_removed_does_not_fail_the_turn(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Killing the tree frees the directory; this is what happens when something still does not.
+
+    A runtime can wedge for reasons this engine does not get a say in, so the removal is
+    best-effort. It must not be ``TemporaryDirectory``'s: on 3.10 that cleanup answers a
+    ``PermissionError`` on a directory by unlinking it, and when the unlink raises
+    ``PermissionError`` too — which on Windows is exactly what a directory does — it calls
+    itself on the same directory and recurses until the interpreter stops it, with
+    ``ignore_cleanup_errors`` never reaching that branch. That ``RecursionError``, not the
+    survivor, is what the Windows CI run actually reported.
+
+    The wedge is that failure simulated in its Windows shape, because the shape is the
+    point: the scratch directory refuses both the ``rmdir`` and the ``unlink`` that follows
+    it, with ``PermissionError`` each time. Windows raising ``PermissionError`` rather than
+    ``IsADirectoryError`` from unlinking a directory is precisely what sends that cleanup
+    back around the loop, so a wedge that only refused the ``rmdir`` would be testing a
+    failure this engine never actually hit.
+    """
+    made: list[str] = []
+    real_mkdtemp = assist.tempfile.mkdtemp
+    real_rmdir = os.rmdir
+    real_unlink = os.unlink
+
+    def spy_mkdtemp(*args, **kwargs):
+        made.append(real_mkdtemp(*args, **kwargs))
+        return made[-1]
+
+    def wedged(real):
+        def refuse(path, *args, **kwargs):
+            if made and str(path) == made[0]:
+                raise PermissionError(13, "The process cannot access the file", str(path))
+            return real(path, *args, **kwargs)
+
+        return refuse
+
+    monkeypatch.setattr(assist.tempfile, "mkdtemp", spy_mkdtemp)
+    monkeypatch.setattr(os, "rmdir", wedged(real_rmdir))
+    monkeypatch.setattr(os, "unlink", wedged(real_unlink))
+    result = run_child([sys.executable, "-c", "pass"], "", timeout=10, max_bytes=1_000)
+    monkeypatch.undo()
+
+    assert result.reason == ""
+    assert result.returncode == 0
+    scratch = Path(made[0])
+    assert scratch.name.startswith("mos-assist-")
+    assert scratch.is_dir(), "the wedge never fired, so this test proved nothing"
+    shutil.rmtree(scratch, ignore_errors=True)
+
+
+def test_the_scratch_directory_is_gone_when_nothing_is_holding_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The ordinary case: best-effort still means it is actually removed."""
+    made: list[str] = []
+    real_mkdtemp = assist.tempfile.mkdtemp
+
+    def spy_mkdtemp(*args, **kwargs):
+        made.append(real_mkdtemp(*args, **kwargs))
+        return made[-1]
+
+    monkeypatch.setattr(assist.tempfile, "mkdtemp", spy_mkdtemp)
+    run_child([sys.executable, "-c", "pass"], "", timeout=10, max_bytes=1_000)
+
+    assert made and not Path(made[0]).exists()
 
 
 def test_the_child_is_spawned_without_a_shell_and_in_its_own_session(
