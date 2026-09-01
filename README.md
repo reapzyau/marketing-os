@@ -5,6 +5,28 @@ through the same deterministic CLI and the same bundled skills. The CLI owns fil
 facts, validation, and runtime wiring. Agents own interviews, judgment, synthesis, and
 writing.
 
+## Install with your agent
+
+If you would rather not run the install yourself, paste the block below into your coding
+agent — Claude Code or Codex, the two runtimes `mos install` wires — and let it do the
+setup. It is two steps today, not one: the agent installs the CLI and the skills, then
+hands back to you, because the interview that fills a brain belongs to `/mos-onboard` and
+that skill needs a session that can see it. A `mos onboard` that installs itself is
+designed but not built.
+
+```text
+Install marketing-os for me, then stop. Follow these steps exactly; do not add steps and do not ask me questions.
+
+1. Install the CLI: run `pipx install marketing-os`. If pipx is not installed, run `uv tool install marketing-os` instead. Use one of those two, nothing else. Both put `mos` in `~/.local/bin`; if your shell cannot find `mos` afterwards, call it by that path.
+2. Wire the skills: run `mos install --runtime all --yes`. It copies the bundled skills into `~/.claude/skills` and `~/.agents/skills` and records what it wrote under `~/.marketing-os`. On a first install it may also open the local app in a browser tab; leave that tab alone.
+3. Verify: `mos --version` must print `mos 0.3.0`, and `ls ~/.claude/skills | grep '^mos-'` must list exactly nine entries: mos-bet, mos-end, mos-help, mos-migrate, mos-onboard, mos-start, mos-status, mos-think, mos-update. If either check fails, show me the output and stop.
+4. Stop here. Do not run `mos onboard`, do not ask about my business, and do not create any folder. Tell me to open a new agent session in the folder where I want my marketing brain to live and type `/mos-onboard` (in Codex, `$mos-onboard`). Say why a new session is needed: skills are discovered when a session starts, so this session cannot see the one it just installed.
+```
+
+In that new session, `/mos-onboard` checks what is already in the folder, asks for the
+business name, the destination, and the mode, shows you the plan, and creates the brain
+only after you approve it.
+
 ## Install
 
 marketing-os is on PyPI, so `pipx install marketing-os` is the front door:

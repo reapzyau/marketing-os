@@ -17,6 +17,9 @@ the same parser, so a brain built one way is identical to a brain built the othe
 pipx install marketing-os
 ```
 
+If you would rather have your coding agent run this step and the next, the
+[README](../README.md#install-with-your-agent) has a block to paste into it.
+
 If you are working on the engine itself, install from a source checkout instead. It puts the
 same `mos` on your path from the working tree, so edits show up without reinstalling, and
 every command in this guide behaves identically either way:
