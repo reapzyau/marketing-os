@@ -64,7 +64,7 @@ these values:
 | --- | --- | --- |
 | Project Name | `marketing-os` | The `name` in `pyproject.toml`. PyPI normalises `-` and `_`, so `marketing_os` resolves to the same project. |
 | Owner | `the-vibe-marketing-lab` | The GitHub organisation that owns the repo since 2026-09-05 (it was the `reapzyau` user before). PyPI binds the publisher to owner + repo, so this row had to change when the repo moved. |
-| Repository name | `marketing-os` | The repository's **current** name. `marketing-os-next` is an old name that GitHub 301-redirects; the OIDC claim carries `reapzyau/marketing-os`, and entering the old name will fail. |
+| Repository name | `marketing-os` | The repository's **current** name. `marketing-os-next` is an old name that GitHub 301-redirects; the OIDC claim carries `the-vibe-marketing-lab/marketing-os`, and entering the old name will fail. |
 | Workflow name | `release.yml` | A bare filename. PyPI rejects anything containing `/`, so `.github/workflows/release.yml` is invalid, and this is the filename — not the `name: release` line inside it. |
 | Environment name | `pypi` | Must match `environment: name: pypi` in the `publish` job. PyPI treats this field as optional, but the workflow declares an environment — leave it blank here and the claim will not match. |
 
