@@ -7,6 +7,11 @@ All notable changes to marketing-os are recorded here. Versions follow
 
 ### Fixed
 
+- **`mos doctor` checks the install when no brain is there.** Run right after
+  `mos install`, in a folder with no `.mos/config.yaml`, doctor read the folder's own
+  `.claude/skills` and reported a correctly wired install as `runtime-not-ready`. It now
+  reads the home runtime directories `mos install` wrote, is `ok` when both are ready, and
+  points at `run-onboard`; when they are not it points at `run-install`.
 - **`mos doctor` agrees with `mos status` about discovered context.** On a brain whose
   brand, voice, audience, strategy and proof were answered in files of its owner's naming,
   status reported every field complete while doctor, reading the same brain in the same
