@@ -63,8 +63,8 @@ these values:
 | Field | Value | Why this exact value |
 | --- | --- | --- |
 | Project Name | `marketing-os` | The `name` in `pyproject.toml`. PyPI normalises `-` and `_`, so `marketing_os` resolves to the same project. |
-| Owner | `reapzyau` | The GitHub user, not the repository. PyPI resolves it to a numeric account ID, so a later GitHub username change does not break the publisher. |
-| Repository name | `marketing-os` | The repository's **current** name. `marketing-os-next` is an old name that GitHub 301-redirects; the OIDC claim carries `reapzyau/marketing-os`, and entering the old name will fail. |
+| Owner | `the-vibe-marketing-lab` | The GitHub organisation that owns the repo since 2026-09-05 (it was the `reapzyau` user before). PyPI binds the publisher to owner + repo, so this row had to change when the repo moved. |
+| Repository name | `marketing-os` | The repository's **current** name. `marketing-os-next` is an old name that GitHub 301-redirects; the OIDC claim carries `the-vibe-marketing-lab/marketing-os`, and entering the old name will fail. |
 | Workflow name | `release.yml` | A bare filename. PyPI rejects anything containing `/`, so `.github/workflows/release.yml` is invalid, and this is the filename — not the `name: release` line inside it. |
 | Environment name | `pypi` | Must match `environment: name: pypi` in the `publish` job. PyPI treats this field as optional, but the workflow declares an environment — leave it blank here and the claim will not match. |
 
@@ -91,7 +91,7 @@ not in it. Merge the branch you are on into `main` first, and confirm the tree i
 
 ```bash
 # The local remote still uses the old repository name. Point it at the canonical one.
-git remote set-url origin https://github.com/reapzyau/marketing-os.git
+git remote set-url origin https://github.com/the-vibe-marketing-lab/marketing-os.git
 
 git status --short          # must be empty before you go on
 git switch main
@@ -127,7 +127,7 @@ publish `0.3.0` and burn the wrong number.
 Watch the run, approving the `publish` job if you set a required reviewer:
 
 ```bash
-gh run watch --repo reapzyau/marketing-os
+gh run watch --repo the-vibe-marketing-lab/marketing-os
 ```
 
 Then confirm PyPI has both files at the right version:

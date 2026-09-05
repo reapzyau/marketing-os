@@ -25,7 +25,7 @@ same `mos` on your path from the working tree, so edits show up without reinstal
 every command in this guide behaves identically either way:
 
 ```bash
-git clone https://github.com/reapzyau/marketing-os
+git clone https://github.com/the-vibe-marketing-lab/marketing-os
 cd marketing-os
 python -m pip install -e .
 ```

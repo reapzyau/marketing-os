@@ -33,10 +33,10 @@ dependencies = []
 # The canonical repository is `marketing-os`; `marketing-os-next` is an old name
 # that GitHub 301-redirects, so it is not used in published metadata.
 [project.urls]
-Homepage = "https://github.com/reapzyau/marketing-os"
-Repository = "https://github.com/reapzyau/marketing-os"
-Issues = "https://github.com/reapzyau/marketing-os/issues"
-Changelog = "https://github.com/reapzyau/marketing-os/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/the-vibe-marketing-lab/marketing-os"
+Repository = "https://github.com/the-vibe-marketing-lab/marketing-os"
+Issues = "https://github.com/the-vibe-marketing-lab/marketing-os/issues"
+Changelog = "https://github.com/the-vibe-marketing-lab/marketing-os/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = [
