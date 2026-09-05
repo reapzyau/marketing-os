@@ -5,6 +5,31 @@ All notable changes to marketing-os are recorded here. Versions follow
 
 ## [Unreleased]
 
+### Changed
+
+- **The local app wears the Lab's Ember system, and the dashboard is a ledger.** The app
+  is branded MarketingOS: a live-text wordmark in Bricolage Grotesque, Figtree for
+  everything else, both vendored as woff2 inside the wheel because the page's CSP allows
+  same-origin fonts only. Warm dark ground, one Ember object per view, Sun for status,
+  hairlines between rows, no card shadows, no gradients, no light theme. The dashboard's
+  hero card, two health tiles, checklist card, assistants card and findings card are gone;
+  in their place is one column of rows: the next action with its fix, then one row per
+  business question showing the first line of the operator's own answer, its state and a
+  Change button, then one status row (assistants, structure, answers by count, findings
+  with a count that open in place), then how to open the brain in Claude Code with the
+  exact lines behind the technical disclosure. A row opens in place into the whole answer
+  as prose. The answers are read once per brain through `mos context show` and reach the
+  page as text, never markup. The rail carries the brains, Set up a brain (or another),
+  the two section links, and Attach a folder beside Refresh; the top bar is drawn only
+  below 900px, where it is the drawer's handle. Commands are tiered everyday, maintenance
+  and advanced, with advanced folded by default. The wizard's preview tree shows the
+  documents a person will open and folds the skills, dot folders and git steps into one
+  faint row. The interview shows the answer on file as prose above the box that edits it.
+  The token names the contract tests read are unchanged; `--ink-3` sits at Paper 54%
+  rather than Ember's 50% because 50% measures under 4.5:1 on two surfaces and the accent
+  wash, and accent text on the wash is Ember Bright, which the two affected contrast
+  pairs now measure.
+
 ### Fixed
 
 - **The dashboard reads findings to the operator in plain words.** The hero card keyed

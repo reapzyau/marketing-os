@@ -1,4 +1,4 @@
-/* marketing-os local app.
+/* MarketingOS local app.
  *
  * Contract with the server (marketing_os/ui/server.py):
  *   - the session token lives in <meta name="mos-token">
@@ -24,7 +24,7 @@
  * What is, and is not, from the server. No envelope value is ever interpolated as markup:
  * every one reaches the DOM as text, through el()'s `text:` or add()'s createTextNode. But
  * a large share of the words on screen are written here rather than reported — CONTEXT_INFO,
- * COMMAND_INFO, ARG_INFO, APPLY_STEPS, the health tile bodies and the whole of heroPlan()
+ * COMMAND_INFO, ARG_INFO, APPLY_STEPS, the ledger's row copy and the whole of heroPlan()
  * are authored copy, keyed off envelope ids. Facts (counts, paths, findings, changes, diffs)
  * come from envelopes; the sentences around them are ours. Do not read heroPlan's diagnoses
  * as something the server said.
@@ -279,140 +279,148 @@
 
   var COMMAND_INFO = {
     status: {
-      group: "look",
+      group: "everyday",
       order: 1,
       title: "Check the brain",
       blurb: "What is in the folder, what is filled in, and whether both assistants can see the skills.",
     },
-    doctor: {
-      group: "look",
+    "context set": {
+      group: "everyday",
       order: 2,
-      title: "Health check",
-      blurb: "Structure and assistant wiring in one pass. The fastest answer to is anything broken.",
+      title: "Answer a business question",
+      blurb: "Writes one answer into the file behind it. The in-app interview runs this for you.",
+    },
+    update: {
+      group: "everyday",
+      order: 3,
+      title: "Update MarketingOS",
+      blurb: "Updates the engine itself to the latest release.",
+    },
+    "skills sync": {
+      group: "maintenance",
+      order: 1,
+      title: "Sync the assistant skills",
+      blurb: "Copies this version's shared skills into each assistant's own skill folder.",
+    },
+    "index sync": {
+      group: "maintenance",
+      order: 2,
+      title: "Rebuild the navigation",
+      blurb: "Regenerates every navigation page so the map matches the files that actually exist.",
+    },
+    related: {
+      group: "maintenance",
+      order: 3,
+      title: "Link up orphan documents",
+      blurb: "Proposes a Related block for documents that link to nothing, so no note is stranded.",
+    },
+    ingest: {
+      group: "maintenance",
+      order: 4,
+      title: "Capture raw material",
+      blurb: "Files a document, a URL or pasted text into the knowledge folder with the right frontmatter.",
     },
     validate: {
-      group: "look",
-      order: 3,
+      group: "maintenance",
+      order: 5,
       title: "Validate the structure",
       blurb: "Checks that every folder and file is where the brain expects it, and reports anything out of place.",
     },
+    doctor: {
+      group: "maintenance",
+      order: 6,
+      title: "Health check",
+      blurb: "Structure and assistant wiring in one pass. The fastest answer to is anything broken.",
+    },
     "context show": {
-      group: "look",
-      order: 4,
+      group: "maintenance",
+      order: 7,
       title: "See the questions",
       blurb: "Every business question, whether it has been answered, and the answer on file.",
     },
     query: {
-      group: "look",
-      order: 5,
+      group: "maintenance",
+      order: 8,
       title: "Find something",
       blurb: "Ask a question, get back the documents in this brain most likely to answer it.",
     },
     think: {
-      group: "look",
-      order: 6,
+      group: "maintenance",
+      order: 9,
       title: "Think about a topic",
       blurb: "Gathers the grounded context for a topic and hands it to an assistant to reason over.",
     },
-    "index status": {
-      group: "look",
-      order: 7,
-      title: "Navigation freshness",
-      blurb: "Whether the catalogue and the navigation map still match what is on disk.",
-    },
-    statusline: {
-      group: "look",
-      order: 8,
-      title: "One-line summary",
-      blurb: "The short badge meant for a terminal prompt or a status bar.",
-    },
     "assist status": {
-      group: "look",
-      order: 9,
+      group: "advanced",
+      order: 1,
       title: "Can an assistant interview you",
       blurb:
         "Which assistants on this computer can actually answer. It runs their version " +
         "check and asks no model, so it costs nothing.",
     },
     "assist ask": {
-      group: "look",
-      order: 10,
+      group: "advanced",
+      order: 2,
       title: "One turn of the assisted interview",
       blurb:
         "Your assistant either asks you one question or drafts an answer from what it has " +
         "been told. It runs on your own subscription and spends your own tokens, and it " +
         "writes nothing: the draft comes back for you to save yourself.",
     },
-    onboard: {
-      group: "change",
-      order: 1,
-      title: "Create or complete a brain",
-      blurb: "Scaffolds folders, wires the skills, starts git, and lists the business files still to fill in.",
-    },
-    "context set": {
-      group: "change",
-      order: 2,
-      title: "Answer a business question",
-      blurb: "Writes one answer into the file behind it. The in-app interview runs this for you.",
-    },
-    "skills sync": {
-      group: "change",
+    "index status": {
+      group: "advanced",
       order: 3,
-      title: "Sync the assistant skills",
-      blurb: "Copies this version's shared skills into each assistant's own skill folder.",
+      title: "Navigation freshness",
+      blurb: "Whether the catalogue and the navigation map still match what is on disk.",
     },
-    "index sync": {
-      group: "change",
+    "index build": {
+      group: "advanced",
       order: 4,
-      title: "Rebuild the navigation",
-      blurb: "Regenerates every navigation page so the map matches the files that actually exist.",
+      title: "Rebuild the catalogue",
+      blurb: "Re-reads every document into machine-local state. Safe to run any time.",
     },
-    related: {
-      group: "change",
+    statusline: {
+      group: "advanced",
       order: 5,
-      title: "Link up orphan documents",
-      blurb: "Proposes a Related block for documents that link to nothing, so no note is stranded.",
+      title: "One-line summary",
+      blurb: "The short badge meant for a terminal prompt or a status bar.",
     },
-    ingest: {
-      group: "change",
+    install: {
+      group: "advanced",
       order: 6,
-      title: "Capture raw material",
-      blurb: "Files a document, a URL or pasted text into the knowledge folder with the right frontmatter.",
+      title: "Install the global skills",
+      blurb: "Puts the bootstrap skills in your home folder so any assistant can find MarketingOS.",
     },
     migrate: {
-      group: "change",
+      group: "advanced",
       order: 7,
       title: "Tidy files into place",
       blurb: "Diagnoses files sitting in the wrong place, and applies a routing plan when you have one.",
     },
-    "index build": {
-      group: "keep",
-      order: 1,
-      title: "Rebuild the catalogue",
-      blurb: "Re-reads every document into machine-local state. Safe to run any time.",
+    attach: {
+      group: "advanced",
+      order: 8,
+      title: "Adopt an existing folder",
+      blurb: "Brings a brain made with an older layout up to date. Every change is previewed before it is written.",
     },
-    install: {
-      group: "keep",
-      order: 2,
-      title: "Install the global skills",
-      blurb: "Puts the bootstrap skills in your home folder so any assistant can find marketing-os.",
-    },
-    update: {
-      group: "keep",
-      order: 3,
-      title: "Update marketing-os",
-      blurb: "Updates the engine itself to the latest release.",
+    onboard: {
+      group: "advanced",
+      order: 9,
+      title: "Create or complete a brain",
+      blurb: "Scaffolds folders, wires the skills, starts git, and lists the business files still to fill in.",
     },
   };
 
   function commandInfo(name) {
-    return COMMAND_INFO[name] || { group: "keep", order: 99, title: name, blurb: "" };
+    return COMMAND_INFO[name] || { group: "advanced", order: 99, title: name, blurb: "" };
   }
 
+  /* Three tiers: what an operator runs most days, what keeps a brain tidy, and the rest.
+   * Typed lowercase; the stylesheet sets them as eyebrows. */
   var GROUPS = [
-    { id: "look", label: "Look at the brain" },
-    { id: "change", label: "Change the brain" },
-    { id: "keep", label: "Housekeeping" },
+    { id: "everyday", label: "everyday" },
+    { id: "maintenance", label: "maintenance" },
+    { id: "advanced", label: "advanced", folded: true },
   ];
 
   var ARG_INFO = {
@@ -586,8 +594,6 @@
     var onBrain = name === "dashboard" || name === "commands";
     show($("tabs"), onBrain);
     show($("btn-refresh"), onBrain);
-    $("brand-sub").textContent =
-      name === "wizard" ? "setting up" : name === "interview" ? "the interview" : "the local app";
     renderTopbarName();
     ["dashboard", "commands"].forEach(function (id) {
       var tab = $("tab-" + id);
@@ -804,6 +810,8 @@
       return el("li", { class: "brain" }, kids);
     });
     fill(host, items.length ? items : [el("p", { class: "brains__empty", text: "No brains yet." })]);
+    var setUp = $("btn-new-brain") && $("btn-new-brain").querySelector("span");
+    if (setUp) setUp.textContent = items.length ? "Set up another brain" : "Set up a brain";
     show($("sidebar"), true);
     renderTopbarName();
     if (!focusedPath) return;
@@ -2381,10 +2389,15 @@
   /* A .gitkeep is not a document: it is the marker that keeps an empty folder in place.
    * Counting the two together is what let ten of them shout over the six files a person
    * will actually open. */
+  /* Machinery is everything the operator is not expected to open: dot folders and dot
+   * files at the root of the brain, and the two assistant entry files. */
+  var MACHINERY = /^(?:\.[^/]+(?:\/|$)|CLAUDE\.md$|AGENTS\.md$)/;
+
   function parsePlan(changes) {
     var docs = [];
     var placeholders = [];
     var skills = [];
+    var machinery = [];
     var setup = [];
     changes.forEach(function (change) {
       var match = /^(create|replace|copy|link)\s+(.+)$/.exec(change);
@@ -2395,12 +2408,14 @@
       var target = match[2];
       if (/^\.(claude|agents)\/skills\//.test(target)) skills.push(target);
       else if (PLACEHOLDER.test(target)) placeholders.push(target);
+      else if (MACHINERY.test(target)) machinery.push(target);
       else docs.push(target);
     });
     return {
       docs: docs,
       placeholders: placeholders,
       skills: skills,
+      machinery: machinery,
       setup: setup,
       files: docs.concat(placeholders),
     };
@@ -2476,6 +2491,19 @@
     return list;
   }
 
+  /* The skills, the dot folders and the git steps, folded to one faint row that opens
+   * into the full list. They keep the brain working; nobody is expected to open them. */
+  function machineryRow(parts) {
+    var lines = parts.skills.concat(parts.machinery, parts.setup);
+    if (!lines.length) return null;
+    return el("div", { class: "tree__machinery" }, [
+      tech(
+        [changesList(lines, "The machinery")],
+        "and " + plural(lines.length, "piece", "pieces") + " of machinery that keep it working"
+      ),
+    ]);
+  }
+
   function countPart(n, label) {
     if (!n) return null;
     return el("li", { class: "plan-sum__part" }, [
@@ -2500,8 +2528,10 @@
       el("ul", { class: "plan-sum__parts", role: "list" }, [
         countPart(parts.docs.length, "documents to fill in"),
         countPart(parts.placeholders.length, "empty folders, ready for what you add"),
-        countPart(parts.skills.length, "assistant skills, for Claude Code and Codex"),
-        countPart(parts.setup.length, "setup steps, including starting git"),
+        countPart(
+          parts.skills.length + parts.machinery.length + parts.setup.length,
+          "pieces of machinery, including the assistant skills and git"
+        ),
       ]),
     ]);
   }
@@ -2583,7 +2613,7 @@
           el("span", { class: "tree-wrap__title", text: "Your new folder, in full" }),
           el("span", {
             class: "pill",
-            text: plural(parts.files.length + parts.skills.length, "item"),
+            text: plural(parts.files.length, "item"),
           }),
           el("p", {
             class: "tree-wrap__note",
@@ -2592,7 +2622,10 @@
               + "that keep an empty folder in place until you put something in it.",
           }),
         ]),
-        el("div", { class: "tree" }, [renderTree(buildTree(parts.files.concat(parts.skills)), 0)]),
+        el("div", { class: "tree" }, [
+          renderTree(buildTree(parts.files), 0),
+          machineryRow(parts),
+        ]),
       ])
     );
 
@@ -2607,16 +2640,6 @@
             " folder in the tree above. Every client you sign gets a row.",
           ]),
         ])
-      );
-    }
-
-    if (parts.setup.length) {
-      add(
-        frag,
-        tech(
-          [subhead("Then, inside that folder"), changesList(parts.setup, "Setup steps")],
-          "Show the setup steps that run inside it"
-        )
       );
     }
 
@@ -3402,7 +3425,7 @@
     var open = openQuestions().length;
 
     $("iv-eyebrow").textContent =
-      info.title + " — question " + (iv.index + 1) + " of " + iv.fields.length;
+      info.title.toLowerCase() + " \u00b7 question " + (iv.index + 1) + " of " + iv.fields.length;
     $("iv-title").textContent = field.question;
     $("iv-hint").textContent = field.hint || info.body;
     renderRail();
@@ -3498,6 +3521,12 @@
           ]),
         ]),
         assistHost,
+        field.body
+          ? el("div", { class: "iv-current" }, [
+              el("p", { class: "iv-current__label eyebrow", text: "on file now" }),
+              prose(field.body),
+            ])
+          : null,
         el("p", {
           class: "field__help",
           id: "iv-answer-help",
@@ -3839,73 +3868,275 @@
     var status = App.status;
     if (!status) return;
 
-    $("dash-eyebrow").textContent = MODE_LABEL[status.mode] || "Business brain";
+    $("dash-eyebrow").textContent = (MODE_LABEL[status.mode] || "Business brain").toLowerCase();
     $("dash-title").textContent = (status.business && status.business.name) || "This brain";
 
     fill($("dash-meta"), [
-      status.mode
-        ? el("span", { class: "pill pill--accent", text: MODE_SHORT[status.mode] || status.mode })
-        : null,
+      status.mode ? el("span", { class: "meta__item", text: MODE_SHORT[status.mode] || status.mode }) : null,
       el("span", {
-        class: "pill",
+        class: "meta__item",
         text: plural((status.installed_skills || []).length, "shared skill"),
       }),
-      el("span", { class: "pill", text: "Folder: " + folderName(status.repo) }),
+      el("span", { class: "meta__item", text: "Folder: " + folderName(status.repo) }),
     ]);
 
-    fill($("dash-health"), []);
-
-    var body = el("div", {});
-    add(body, heroCard(status));
-    add(body, healthGrid(status, App.doctor));
-    add(
-      body,
-      el("div", { class: "grid grid--2" }, [
-        contextCard(status),
-        el("div", { class: "stack" }, [runtimeCard(status), findingsCard(status)]),
-      ])
-    );
-    add(
-      body,
-      tech(
-        [
-          el("p", { class: "tech__line" }, [
-            "This brain is at ",
-            el("code", { text: status.repo, title: status.repo }),
-            ".",
-          ]),
-          el("div", { class: "btn-row" }, [
-            el("button", {
-              class: "btn btn--secondary",
-              type: "button",
-              text: "Copy that path",
-              on: {
-                click: function () {
-                  copy(status.repo, "Folder path copied");
-                },
-              },
-            }),
-          ]),
-        ],
-        "Show where this brain lives on disk"
-      )
-    );
-    fill($("dash-body"), body);
+    var rows = answerRows(status);
+    var list = el("ol", { class: "ledger", role: "list", "aria-label": "This brain" }, [
+      nextRow(status),
+      rows.nodes,
+      statusRow(status, App.doctor),
+      openRow(status),
+    ]);
+    fill($("dash-body"), list);
+    fillAnswers(rows.entries, App.path);
   }
 
-  function heroCard(status) {
+  /* ================================================================ ledger */
+
+  /* The dashboard is one column of rows: the next action, one row per business question
+   * in the operator's own words, one status row, then how to open the brain in Claude
+   * Code. The answers themselves are not in the state envelope, so they are read once
+   * per brain through `mos context show` and filled into the rows in place, as text. */
+
+  var ledger = { answers: {}, pending: {} };
+
+  function ledgerRow(label, body, end, extra) {
+    return el("li", { class: "ledger__row" + (extra ? " " + extra : "") }, [
+      el("p", { class: "ledger__label", text: label }),
+      body,
+      end ? el("div", { class: "ledger__end" }, end) : null,
+    ]);
+  }
+
+  /* The operator's words, read as prose: frontmatter dropped, the document title
+   * dropped, emphasis markers stripped, list items kept as their own lines. A heading
+   * below the title is kept as a labelled paragraph so the first line of an answer is
+   * always the operator's own sentence. Text only; nothing here is ever markup. */
+  function proseParagraphs(text) {
+    var raw = String(text || "").replace(/\r\n?/g, "\n");
+    if (raw.indexOf("---") === 0) {
+      var close = raw.indexOf("\n---", 3);
+      if (close !== -1) raw = raw.slice(close + 4);
+    }
+    var paragraphs = [];
+    raw.split(/\n[ \t]*\n/).forEach(function (block) {
+      var current = [];
+      block.split("\n").forEach(function (rawLine) {
+        var line = rawLine.trim();
+        if (!line) return;
+        if (/^#\s+/.test(line)) return;
+        var heading = /^#{2,6}\s+/.test(line);
+        var item = /^(?:[-*+]|\d+[.)])\s+/.test(line);
+        line = line
+          .replace(/^#{2,6}\s+/, "")
+          .replace(/^(?:[-*+]|\d+[.)])\s+/, "")
+          .replace(/^>\s?/, "")
+          .replace(/(\*\*|__)(.*?)\1/g, "$2")
+          .replace(/(^|[^\w*])\*([^*\n]+)\*/g, "$1$2")
+          .replace(/`([^`]*)`/g, "$1")
+          .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+          .trim();
+        if (!line) return;
+        if (item || heading) {
+          if (current.length) paragraphs.push({ text: current.join(" "), heading: false });
+          current = [];
+          paragraphs.push({ text: line, heading: heading });
+        } else {
+          current.push(line);
+        }
+      });
+      if (current.length) paragraphs.push({ text: current.join(" "), heading: false });
+    });
+    return paragraphs;
+  }
+
+  function firstLine(text) {
+    var first = proseParagraphs(text).filter(function (paragraph) {
+      return !paragraph.heading;
+    })[0];
+    return first ? first.text : "";
+  }
+
+  function prose(text) {
+    return el(
+      "div",
+      { class: "ledger__prose" },
+      proseParagraphs(text).map(function (paragraph) {
+        return el("p", {
+          class: paragraph.heading ? "ledger__prose-heading" : null,
+          text: paragraph.text,
+        });
+      })
+    );
+  }
+
+  /* One row per business question. The label names the question, the line is the
+   * first line of the answer once it has been read (the question's help line until
+   * then), the state is a word, and the one action opens the interview on that
+   * question. Pressing the line opens the row into the whole answer. */
+  function answerRow(key, field, isRequired) {
+    var info = contextInfo(key);
+    var source = fieldSource(field);
+    var answered = source !== "missing";
+    var panelId = "answer-" + String(key).replace(/[^a-z0-9-]/gi, "-");
+    var line = el("span", {
+      class: "ledger__line" + (answered ? "" : " ledger__line--help"),
+      text: info.body,
+    });
+    var open = el(
+      "button",
+      {
+        class: "ledger__open",
+        type: "button",
+        "aria-expanded": "false",
+        "aria-controls": panelId,
+        title: (answered ? "Read your answer about " : "Read the question about ") + info.title.toLowerCase(),
+      },
+      [line]
+    );
+    var full = el("div", { class: "ledger__full", id: panelId, hidden: true });
+    var change = el("button", {
+      class: "btn btn--ghost btn--sm",
+      type: "button",
+      text: answered ? "Change" : "Answer",
+      title:
+        (answered ? "Change your answer about " : "Answer the question about ") +
+        info.title.toLowerCase(),
+      on: {
+        click: function () {
+          openInterview(key);
+        },
+      },
+    });
+    var state = el("span", {
+      class: "ledger__state" + (!answered && isRequired ? " ledger__state--needed" : ""),
+      text: answered ? "Answered" : isRequired ? "Needed" : "optional",
+    });
+    var body = el("div", { class: "ledger__body" }, [open, full]);
+    var row = ledgerRow(info.title, body, [state, change]);
+
+    function setOpen(on) {
+      open.setAttribute("aria-expanded", on ? "true" : "false");
+      show(full, on);
+      setClass(row, "ledger__row--open", on);
+    }
+    open.addEventListener("click", function () {
+      setOpen(open.getAttribute("aria-expanded") !== "true");
+    });
+    row.addEventListener("keydown", function (event) {
+      if (event.key !== "Escape" || open.getAttribute("aria-expanded") !== "true") return;
+      event.preventDefault();
+      setOpen(false);
+      open.focus();
+    });
+
+    return { node: row, key: key, field: field, info: info, line: line, full: full, answered: answered };
+  }
+
+  function answerRows(status) {
+    var counts = contextCounts(status);
+    var required = (status.context || {}).required || [];
+    var entries = counts.order.map(function (key) {
+      return answerRow(key, counts.fields[key], required.indexOf(key) !== -1);
+    });
+    return {
+      entries: entries,
+      nodes: entries.map(function (entry) {
+        return entry.node;
+      }),
+    };
+  }
+
+  /* What a row holds once it opens. The answer is the operator's own words; the file it
+   * came from is the checker's data and rides in a .row__path. */
+  function fillAnswer(entry, record) {
+    var body = record && record.body ? String(record.body) : "";
+    var question = record && record.question ? String(record.question) : "";
+    var where =
+      entry.field && fieldSource(entry.field) === "discovered" ? entry.field.discovered_path || "" : "";
+    var change = el("button", {
+      class: "btn btn--secondary btn--sm",
+      type: "button",
+      text: entry.answered ? "Change this answer" : "Answer this question",
+      on: {
+        click: function () {
+          openInterview(entry.key);
+        },
+      },
+    });
+    if (body) {
+      entry.line.textContent = firstLine(body) || entry.info.body;
+      setClass(entry.line, "ledger__line--help", false);
+      fill(entry.full, [
+        prose(body),
+        where ? el("p", { class: "row__path", text: "Found in " + where }) : null,
+        el("div", { class: "btn-row" }, [change]),
+        el("p", {
+          class: "ledger__note",
+          text: "Change opens the interview on this question. Your assistant can draft a new answer there.",
+        }),
+      ]);
+      return;
+    }
+    fill(entry.full, [
+      el("div", { class: "ledger__prose" }, [
+        question ? el("p", { text: question }) : null,
+        el("p", { text: entry.answered ? "The answer on file could not be read." : entry.info.body }),
+      ]),
+      el("div", { class: "btn-row" }, [change]),
+    ]);
+  }
+
+  /* One read per brain. A late answer for a brain no longer on screen is dropped. */
+  function fillAnswers(entries, path) {
+    var key = normPath(path);
+    function apply(records) {
+      var byName = {};
+      (records || []).forEach(function (record) {
+        if (record && record.name) byName[record.name] = record;
+      });
+      entries.forEach(function (entry) {
+        fillAnswer(entry, byName[entry.key] || null);
+      });
+    }
+    if (ledger.answers[key]) {
+      apply(ledger.answers[key]);
+      return;
+    }
+    if (!ledger.pending[key]) {
+      ledger.pending[key] = run("context show", { path: path }).then(function (result) {
+        delete ledger.pending[key];
+        var envelope = result.envelope;
+        if (envelope && envelope.ok && Array.isArray(envelope.fields)) {
+          ledger.answers[key] = envelope.fields;
+        }
+        return envelope && envelope.ok ? envelope.fields : null;
+      });
+    }
+    ledger.pending[key].then(function (records) {
+      if (normPath(App.path) !== key) return;
+      apply(records);
+    });
+  }
+
+  function forgetAnswers(path) {
+    delete ledger.answers[normPath(path)];
+  }
+
+  /* The next action, built from heroPlan. Its primary button is the one Ember object on
+   * the page. */
+  function nextRow(status) {
     var plan = heroPlan(status);
-    var actions = el("div", { class: "hero__actions" });
-    var card = el("section", { class: "hero" }, [
-      el("p", { class: "hero__eyebrow" }, [icon("right"), "Do this next"]),
-      el("h2", { class: "hero__title", text: plan.title }),
-      el("p", { class: "hero__body", text: plan.body }),
+    var actions = el("div", { class: "next__actions" });
+    var body = el("div", { class: "ledger__body next" }, [
+      el("h2", { class: "next__title", text: plan.title }),
+      el("p", { class: "next__body", text: plan.body }),
       actions,
     ]);
     plan.actions.forEach(function (action, index) {
-      actions.appendChild(heroButton(action, card, index === 0));
+      actions.appendChild(heroButton(action, body, index === 0));
     });
-    return card;
+    return ledgerRow("Do this next", body, null, "ledger__row--next");
   }
 
   function heroButton(action, card, primary) {
@@ -4168,358 +4399,98 @@
     };
   }
 
-  function tile(ok, title, body) {
-    return el("div", { class: "tile" }, [
-      el("span", { class: "tile__icon " + (ok ? "tile__icon--ok" : "tile__icon--warn") }, [
-        icon(ok ? "check" : "alert"),
-      ]),
-      el("div", {}, [
-        el("p", { class: "tile__title", text: title }),
-        el("p", { class: "tile__body", text: body }),
-      ]),
-    ]);
-  }
-
-  /* Two tiles, not three. "How much does it know about you" is a count, and a count
-   * belongs on the checklist that lists the questions — stating it here as well is what
-   * made a caption apologise for the duplication in body text. */
-  function healthGrid(status, doctor) {
+  /* The status row: the assistants, the structure, the answers by count, and what the
+   * check found. Findings open in place, grouped by what is wrong; the count is the
+   * checker's own, and a shortened list says so. */
+  function statusRow(status, doctor) {
     var checks = (doctor && doctor.checks) || {};
     var errors = severityCount(status, "error");
     var runtimes = status.runtimes || {};
-    var notReady = Object.keys(runtimes).filter(function (key) {
-      return !runtimes[key].ready;
-    });
-
-    return el("div", { class: "grid grid--2" }, [
-      tile(
-        checks.structure !== false,
-        "Structure",
-        checks.structure !== false
-          ? "Every folder and file is where it should be."
-          : plural(errors, "thing") + " out of place."
-      ),
-      tile(
-        checks.runtime_wiring === true,
-        "Assistant wiring",
-        checks.runtime_wiring === true
-          ? "Claude Code and Codex can both see the skills."
-          : notReady
-              .map(function (key) {
-                return RUNTIME_LABEL[key] || key;
-              })
-              .join(" and ") + " cannot see the current skills."
-      ),
-    ]);
-  }
-
-  function contextCard(status) {
-    var counts = contextCounts(status);
-    var order = counts.order;
-    var fields = counts.fields;
-    var required = (status.context || {}).required || [];
-    var elsewhere = counts.requiredFound;
-
-    var card = el("section", { class: "card" }, [
-      el("div", { class: "card__head" }, [
-        el("div", {}, [
-          el("h2", { class: "card__title", text: "What it knows about you" }),
-          el("p", {
-            class: "card__sub",
-            text:
-              order.length +
-              " questions in all, of which " +
-              counts.required +
-              " are required. The badge counts only the required ones." +
-              (elsewhere
-                ? " An answer filed somewhere other than its usual place still counts as answered."
-                : ""),
-          }),
-        ]),
-        el("span", { class: "card__end" }, [
-          el("span", { class: "pill-row" }, [
-            el("span", {
-              class: counts.requiredDone === counts.required ? "pill pill--ok" : "pill pill--warn",
-              text: counts.requiredDone + " of " + counts.required + " required",
-            }),
-            elsewhere
-              ? el("span", { class: "pill pill--found", text: elsewhere + " found elsewhere" })
-              : null,
-          ]),
-        ]),
-      ]),
-    ]);
-
-    if (!order.length) {
-      add(
-        card,
-        emptyState("Nothing to show", "This brain reports no context files at all. Run the validator.")
-      );
-      return card;
-    }
-
-    add(
-      card,
-      el(
-        "div",
-        { class: "clist" },
-        order.map(function (key) {
-          var field = fields[key];
-          var info = contextInfo(key);
-          var source = fieldSource(field);
-          var answered = source !== "missing";
-          var elsewhere = source === "discovered";
-          var where = elsewhere ? field.discovered_path || "" : "";
-          var isRequired = required.indexOf(key) !== -1;
-          return el(
-            "div",
-            {
-              class: "citem",
-              "data-done": answered ? "true" : "false",
-              "data-source": source,
-            },
-            [
-              el("span", { class: "citem__box" }, answered ? icon("check") : null),
-              el("div", { class: "citem__text" }, [
-                el("p", { class: "citem__title" }, [
-                  info.title,
-                  isRequired ? null : el("span", { class: "pill", text: "optional" }),
-                  elsewhere
-                    ? el("span", { class: "pill pill--found", text: "Found elsewhere" })
-                    : null,
-                ]),
-                el("p", {
-                  class: "citem__body",
-                  text: elsewhere
-                    ? "Answered, but not in the usual place."
-                    : answered
-                      ? "Answered."
-                      : info.body,
-                }),
-                // The one path this card shows in plain sight: which file answered the
-                // question is the whole point of saying it was found elsewhere. Drawn
-                // short, read whole — the full path is the title and the screen-reader text.
-                where
-                  ? el("p", { class: "citem__found" }, [
-                      // The gap on .citem__found does the spacing; a trailing space here
-                      // would double it.
-                      "Found in",
-                      el("code", {
-                        class: "citem__path",
-                        title: where,
-                        "aria-hidden": "true",
-                        text: shortPath(where),
-                      }),
-                      el("span", { class: "sr-only", text: where }),
-                    ])
-                  : null,
-              ]),
-              el("span", { class: "citem__end" }, [
-                el("button", {
-                  class: "btn btn--secondary btn--sm",
-                  type: "button",
-                  text: answered ? "Change" : "Answer",
-                  title:
-                    (answered ? "Change your answer about " : "Answer the question about ") +
-                    info.title.toLowerCase(),
-                  on: {
-                    click: function () {
-                      openInterview(key);
-                    },
-                  },
-                }),
-              ]),
-            ]
-          );
-        })
-      )
-    );
-    // No second primary down here: one button per row is the path, and the card at the
-    // top of the page owns the one filled button on the screen.
-    add(
-      card,
-      tech(
-        [
-          el(
-            "ul",
-            { class: "changes changes--static", role: "list" },
-            order.map(function (key) {
-              var field = fields[key];
-              var line = contextInfo(key).title + " -> " + (field.path || "no path reported");
-              if (fieldSource(field) === "discovered") {
-                line += "   (answered in " + (field.discovered_path || "another file") + ")";
-              }
-              return el("li", { text: line });
-            })
-          ),
-        ],
-        "Show which file each answer lands in"
-      )
-    );
-    return card;
-  }
-
-  function runtimeCard(status) {
-    var runtimes = status.runtimes || {};
-    var keys = Object.keys(runtimes);
-    var card = el("section", { class: "card" }, [
-      el("div", { class: "card__head" }, [
-        el("div", {}, [
-          el("h2", { class: "card__title", text: "Your assistants" }),
-          el("p", { class: "card__sub", text: "Each keeps its own copy of the shared skills." }),
-        ]),
-      ]),
-    ]);
-
-    if (!keys.length) {
-      add(card, emptyState("No assistants detected", "Nothing reported a skill folder here."));
-      return card;
-    }
-
-    add(
-      card,
-      el(
-        "ul",
-        { class: "rows", role: "list" },
-        keys.map(function (key) {
-          var runtime = runtimes[key];
-          var problems = (runtime.missing || []).length + (runtime.mismatched || []).length;
-          return el("li", { class: "row" }, [
-            icon(
-              runtime.ready ? "check" : "alert",
-              "row__icon " + (runtime.ready ? "row__icon--ok" : "row__icon--warn")
-            ),
-            el("div", { class: "row__body" }, [
-              el("p", { class: "row__msg", text: RUNTIME_LABEL[key] || key }),
-              el("p", {
-                class: "row__sub",
-                text: runtime.ready
-                  ? "Up to date with this version's skills."
-                  : plural((runtime.missing || []).length, "skill") +
-                    " missing, " +
-                    (runtime.mismatched || []).length +
-                    " out of date",
-              }),
-            ]),
-            el("span", { class: "row__end" }, [
-              el("span", {
-                class: runtime.ready ? "pill pill--ok" : "pill pill--warn",
-                text: runtime.ready ? "Ready" : plural(problems, "problem"),
-              }),
-            ]),
-          ]);
-        })
-      )
-    );
-
-    var allReady = keys.every(function (key) {
+    var runtimeKeys = Object.keys(runtimes);
+    var allReady = runtimeKeys.every(function (key) {
       return runtimes[key].ready;
     });
-    if (!allReady) {
-      add(
-        card,
-        el("div", { class: "btn-row applybar applybar--top" }, [
-          el("button", {
-            class: "btn btn--secondary",
-            type: "button",
-            text: "Fix this",
-            on: {
-              click: function () {
-                setView("commands");
-                selectCommand("skills sync");
-              },
-            },
-          }),
-        ])
-      );
-    }
-    add(
-      card,
-      tech(
-        [
-          el(
-            "ul",
-            { class: "changes changes--static", role: "list" },
-            keys.map(function (key) {
-              return el("li", {
-                text: (RUNTIME_LABEL[key] || key) + " -> " + runtimes[key].skill_dir,
-              });
-            })
-          ),
-        ],
-        "Show each assistant's skill folder"
-      )
-    );
-    return card;
-  }
-
-  function findingsCard(status) {
+    var counts = contextCounts(status);
     var findings = findingsOf(status);
     var total = findingsTotal(status);
     var withheld = total - findings.length;
-    // A generated icon button loses its label below 640px unless it carries one itself.
-    var recheck = el("button", {
-      class: "btn btn--ghost btn--icon",
-      type: "button",
-      title: "Re-check this brain",
-      "aria-label": "Re-check this brain",
-      on: {
-        click: function () {
-          refresh(true);
-        },
-      },
-    });
-    add(recheck, [icon("refresh"), el("span", { text: "Re-check" })]);
 
-    var card = el("section", { class: "card" }, [
-      el("div", { class: "card__head" }, [
-        el("div", {}, [
-          el("h2", { class: "card__title", text: "What the check found" }),
-          el("p", {
-            class: "card__sub",
-            // The count is the checker's own, always. Only the rows are ever shortened,
-            // and when they are this says so rather than leaving a shorter list to be
-            // read as a shorter answer.
-            text: withheld
-              ? "In plain words, grouped by what is wrong. It found " +
-                plural(total, "thing") +
-                "; the first " +
-                findings.length +
-                " are here, errors before warnings."
-              : "In plain words, grouped by what is wrong. Open the checker for its exact wording.",
-          }),
-        ]),
-        el("span", { class: "card__end" }, [
-          el("span", { class: "pill-row" }, [
-            el("span", {
-              class: severityCount(status, "error") ? "pill pill--err" : "pill",
-              text: plural(total, "finding"),
-            }),
-            recheck,
-          ]),
-        ]),
-      ]),
-    ]);
-    if (!findings.length) {
-      add(
-        card,
-        emptyState(
-          "Nothing to fix",
-          "The last check came back clean. Anything that needs doing is at the top of this page."
-        )
-      );
-    } else {
-      add(card, findingRows(findings));
+    function item(key, value, warn, link) {
+      return el("p", { class: "status__item" }, [
+        el("span", { class: "status__key", text: key }),
+        typeof value === "string"
+          ? el("span", { class: "status__value" + (warn ? " status__value--warn" : ""), text: value })
+          : value,
+        link || null,
+      ]);
+    }
+
+    var assistants = runtimeKeys.length
+      ? runtimeKeys
+          .map(function (key) {
+            return (RUNTIME_LABEL[key] || key) + (runtimes[key].ready ? " ready" : " needs a sync");
+          })
+          .join(" · ")
+      : "none detected";
+    var fixLink = allReady
+      ? null
+      : el("button", {
+          class: "status__link",
+          type: "button",
+          text: "Fix",
+          on: {
+            click: function () {
+              setView("commands");
+              selectCommand("skills sync");
+            },
+          },
+        });
+
+    var structureOk = checks.structure !== false;
+    var found = counts.requiredFound + counts.optionalFound;
+    var answers = el(
+      "span",
+      { class: "status__value" + (counts.requiredDone < counts.required ? " status__value--warn" : "") },
+      [
+        el("span", { text: counts.requiredDone + " of " + counts.required + " required" }),
+        counts.optional ? ", " + counts.optionalDone + " of " + counts.optional + " optional" : null,
+        found ? ", " + found + " found elsewhere" : null,
+      ]
+    );
+
+    var more = el("div", { class: "status__more", id: "findings-panel", hidden: true });
+    var showLink = null;
+    if (total) {
+      showLink = el("button", {
+        class: "status__link",
+        type: "button",
+        text: "Show",
+        "aria-expanded": "false",
+        "aria-controls": "findings-panel",
+      });
+      showLink.addEventListener("click", function () {
+        var on = showLink.getAttribute("aria-expanded") !== "true";
+        showLink.setAttribute("aria-expanded", on ? "true" : "false");
+        showLink.textContent = on ? "Hide" : "Show";
+        show(more, on);
+      });
+      var found = [findingRows(findings)];
       if (withheld) {
-        add(
-          card,
+        found.push(
           el("div", { class: "btn-row" }, [
             el("p", {
               class: "card__sub",
-              text: plural(withheld, "finding") + " not listed here.",
+              text:
+                "It found " +
+                plural(total, "thing") +
+                "; the first " +
+                findings.length +
+                " are here, errors before warnings. " +
+                plural(withheld, "finding") +
+                " not listed.",
             }),
             el("button", {
-              class: "btn btn--secondary",
+              class: "btn btn--secondary btn--sm",
               type: "button",
               text: "Open the checker",
               on: {
@@ -4532,8 +4503,109 @@
           ])
         );
       }
+      fill(more, found);
     }
-    return card;
+
+    var recheck = el("button", {
+      class: "btn btn--ghost btn--sm",
+      type: "button",
+      title: "Re-check this brain",
+      "aria-label": "Re-check this brain",
+      on: {
+        click: function () {
+          refresh(true);
+        },
+      },
+    });
+    add(recheck, [icon("refresh"), el("span", { text: "Re-check" })]);
+
+    var body = el("div", { class: "ledger__body" }, [
+      el("div", { class: "status" }, [
+        item("Assistants", assistants, !allReady, fixLink),
+        item(
+          "Structure",
+          structureOk ? "everything where it should be" : plural(errors, "thing") + " out of place",
+          !structureOk
+        ),
+        item("Answers", answers),
+        item(
+          "Findings",
+          total ? plural(total, "thing") + " found" : "nothing to fix",
+          Boolean(severityCount(status, "error")),
+          showLink
+        ),
+      ]),
+      more,
+      tech(
+        [
+          el(
+            "ul",
+            { class: "changes changes--static", role: "list" },
+            counts.order
+              .map(function (key) {
+                var field = counts.fields[key];
+                var line = contextInfo(key).title + " -> " + (field.path || "no path reported");
+                if (fieldSource(field) === "discovered") {
+                  line += "   (answered in " + (field.discovered_path || "another file") + ")";
+                }
+                return el("li", { text: line });
+              })
+              .concat(
+                runtimeKeys.map(function (key) {
+                  return el("li", {
+                    text: (RUNTIME_LABEL[key] || key) + " -> " + runtimes[key].skill_dir,
+                  });
+                })
+              )
+          ),
+        ],
+        "Show the files behind this"
+      ),
+    ]);
+    return ledgerRow("Status", body, [recheck], "ledger__row--status");
+  }
+
+  /* The closing row. No launcher is invented: the exact lines sit behind the technical
+   * disclosure with a copy button each. */
+  function openRow(status) {
+    var repo = status.repo || App.path;
+    var body = el("div", { class: "ledger__body" }, [
+      el("p", { class: "ledger__line", text: "Open this brain in Claude Code" }),
+      el("p", {
+        class: "next__body",
+        text: "Open a terminal in this folder and start Claude Code, then type /mos-start.",
+      }),
+      tech(
+        [
+          el("p", { class: "tech__line" }, [
+            "This brain is at ",
+            el("code", { text: repo, title: repo }),
+            ".",
+          ]),
+          terminal('cd "' + repo + '"', "Go to the folder"),
+          terminal("claude", "Start Claude Code"),
+          el("p", { class: "tech__line" }, [
+            "Then, inside Claude Code, type ",
+            el("code", { text: "/mos-start" }),
+            ".",
+          ]),
+          el("div", { class: "btn-row" }, [
+            el("button", {
+              class: "btn btn--secondary btn--sm",
+              type: "button",
+              text: "Copy that path",
+              on: {
+                click: function () {
+                  copy(repo, "Folder path copied");
+                },
+              },
+            }),
+          ]),
+        ],
+        "Show the exact lines"
+      ),
+    ]);
+    return ledgerRow("Claude Code", body, null, "ledger__row--open-brain");
   }
 
   /* =============================================================== commands */
@@ -4557,32 +4629,40 @@
             return a === b ? (left < right ? -1 : 1) : a - b;
           });
         if (!names.length) return null;
-        return el("div", { class: "cmd-group" }, [
-          el("h3", { class: "cmd-group__label", text: group.label }),
-          el(
-            "div",
-            {},
-            names.map(function (name) {
-              var info = commandInfo(name);
-              return el(
-                "button",
-                {
-                  class: "cmd-item",
-                  type: "button",
-                  "data-command": name,
-                  on: {
-                    click: function () {
-                      selectCommand(name);
-                    },
+        var list = el(
+          "div",
+          {},
+          names.map(function (name) {
+            var info = commandInfo(name);
+            return el(
+              "button",
+              {
+                class: "cmd-item",
+                type: "button",
+                "data-command": name,
+                on: {
+                  click: function () {
+                    selectCommand(name);
                   },
                 },
-                [
-                  el("span", { class: "cmd-item__name", text: info.title }),
-                  el("span", { class: "cmd-item__cli", text: "mos " + name }),
-                ]
-              );
-            })
-          ),
+              },
+              [
+                el("span", { class: "cmd-item__name", text: info.title }),
+                el("span", { class: "cmd-item__cli", text: "mos " + name }),
+              ]
+            );
+          })
+        );
+        // The advanced tier folds away by default; its summary is the group label.
+        if (group.folded) {
+          return el("details", { class: "cmd-group cmd-adv" }, [
+            el("summary", { text: group.label }),
+            list,
+          ]);
+        }
+        return el("div", { class: "cmd-group" }, [
+          el("h3", { class: "cmd-group__label", text: group.label }),
+          list,
         ]);
       })
     );
@@ -4598,8 +4678,12 @@
     cmd.previewSig = null;
     cmd.builtFor = App.path;
     Array.prototype.forEach.call($("cmd-list").querySelectorAll(".cmd-item"), function (button) {
-      if (button.getAttribute("data-command") === name) button.setAttribute("aria-current", "true");
-      else button.removeAttribute("aria-current");
+      if (button.getAttribute("data-command") === name) {
+        button.setAttribute("aria-current", "true");
+        // A command chosen from elsewhere in the app must be visible in the list.
+        var folded = button.closest("details");
+        if (folded) folded.setAttribute("open", "");
+      } else button.removeAttribute("aria-current");
     });
     renderCommandPanel();
   }
@@ -4901,6 +4985,7 @@
   /* =================================================================== boot */
 
   function refresh(showBoot) {
+    forgetAnswers(App.path);
     if (showBoot) {
       // Said before the focused element is hidden out from under the operator.
       announce("Re-reading the folder.");

@@ -189,7 +189,9 @@ PAIRS = [
     ("card sub on surface", "ink-3", "surface", 4.5),
     ("control border on surface", "control-line", "surface", 3.0),
     ("control border on surface-2", "control-line", "surface-2", 3.0),
-    ("selected place chip", "accent", "accent-soft", 4.5),
+    # Accent text on the accent wash is Ember Bright (--accent-hover), never base Ember:
+    # the Ember system's own rule, and base Ember measures 4.30:1 on the wash.
+    ("selected place chip", "accent-hover", "accent-soft", 4.5),
     ("assist question on its panel", "ink", "accent-soft", 4.5),
     ("assist meta on its panel", "ink-3", "accent-soft", 4.5),
     # The sidebar: a brain or a section at rest, the open one on its accent ground, the
@@ -197,7 +199,7 @@ PAIRS = [
     ("sidebar item on surface", "ink-2", "surface", 4.5),
     ("open brain on its ground", "ink", "accent-soft", 4.5),
     ("open brain sub on its ground", "ink-3", "accent-soft", 4.5),
-    ("current marker on its ground", "accent", "accent-soft", 4.5),
+    ("current marker on its ground", "accent-hover", "accent-soft", 4.5),
     ("needs-attach tag on its ground", "warn", "warn-soft", 4.5),
     ("open section icon on its ground", "accent", "accent-soft", 3.0),
 ]
