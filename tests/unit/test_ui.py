@@ -1048,9 +1048,10 @@ def test_found_brains_are_the_ones_in_the_chosen_folder(browser: dict) -> None:
     found = browser["foundBrainsFollowThePlace"]
     assert found["asked"] == ["/home/you/Desktop"], "one look, at the chosen place only"
     assert found["lede"].startswith("Brains already in this folder (2).")
+    # The twins are told apart with "in <folder>": the Ember retheme retired em dashes.
     assert [b[0] for b in found["buttons"]] == [
-        "Open Cascade Strength Co. \u2014 cascade",
-        "Open Cascade Strength Co. \u2014 cascade-old",
+        "Open Cascade Strength Co. in cascade",
+        "Open Cascade Strength Co. in cascade-old",
     ], "two brains with one name are told apart by folder name, not by path"
 
 

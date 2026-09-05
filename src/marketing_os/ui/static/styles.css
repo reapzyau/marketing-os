@@ -255,6 +255,25 @@ h3[tabindex="-1"]:focus-visible {
   outline: none;
 }
 
+/* Every disclosure carries the same marker: the sprite's chevron, turned when open. */
+summary {
+  list-style: none;
+}
+
+summary::-webkit-details-marker {
+  display: none;
+}
+
+.disc {
+  font-size: 16px;
+  color: var(--ink-3);
+  transition: transform var(--fast) var(--ease);
+}
+
+details[open] > summary .disc {
+  transform: rotate(180deg);
+}
+
 /* ------------------------------------------------------------------ atoms -- */
 /* The eyebrow: typed lowercase, uppercased here, tracked 0.14em. Muted by default. */
 .eyebrow {
@@ -1057,10 +1076,17 @@ h3[tabindex="-1"]:focus-visible {
   color: var(--warn);
 }
 
-/* The memorable moment: the row opens into the answer in full. One reveal, 0.22s. */
+/* The memorable moment: the clamped line gives way to the whole answer in the same
+   slot. One reveal, 0.22s. */
 .ledger__full {
-  margin-top: 16px;
+  margin-bottom: 12px;
   animation: reveal var(--base) var(--ease);
+}
+
+.ledger__less {
+  color: var(--ink-3);
+  font-size: 14px;
+  font-weight: 700;
 }
 
 @keyframes reveal {
@@ -1136,6 +1162,11 @@ h3[tabindex="-1"]:focus-visible {
   align-items: center;
   gap: 10px;
   margin-top: 18px;
+}
+
+.next__actions .btn {
+  padding: 10px 18px;
+  font-size: 14px;
 }
 
 .next .readout {
@@ -1267,8 +1298,8 @@ h3[tabindex="-1"]:focus-visible {
 }
 
 .stepper__item[data-state="current"] .stepper__dot {
-  border-color: var(--accent);
-  color: var(--accent-hover);
+  border-color: var(--ink);
+  color: var(--ink);
 }
 
 /* `clip`, not `hidden`: `hidden` makes this a scroll container, and a sticky child of
@@ -1277,15 +1308,15 @@ h3[tabindex="-1"]:focus-visible {
 .wizard__card {
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--r-xl);
-  background: var(--surface);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   overflow: clip;
 }
 
 .wizard__body {
   min-height: 27rem;
-  padding: 36px 36px 32px;
+  padding: 0 0 32px;
 }
 
 .step__eyebrow {
@@ -1321,10 +1352,9 @@ h3[tabindex="-1"]:focus-visible {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 14px 20px 14px 16px;
+  padding: 14px 0;
   border-top: 1px solid var(--line);
-  border-radius: 0 0 var(--r-xl) var(--r-xl);
-  background: var(--surface-2);
+  background: var(--bg);
 }
 
 .wizard__hint {
@@ -1343,9 +1373,9 @@ h3[tabindex="-1"]:focus-visible {
 .field--nested {
   margin-top: 16px;
   padding: 18px 20px;
-  border: 1px solid var(--accent-line);
+  border: 1px solid var(--line-strong);
   border-radius: var(--r-lg);
-  background: var(--accent-soft);
+  background: var(--surface);
 }
 
 .field__label {
@@ -1489,19 +1519,19 @@ h3[tabindex="-1"]:focus-visible {
 }
 
 .chip--place[aria-pressed="true"] {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-  color: var(--accent-hover);
+  border-color: var(--ink);
+  background: var(--surface);
+  color: var(--ink);
 }
 
 .chip--place[aria-pressed="true"] .chip__tick {
-  border-color: var(--accent);
-  background: var(--accent);
+  border-color: var(--ink);
+  background: var(--ink);
 }
 
 .chip--place[aria-pressed="true"] .chip__tick::after {
   content: "\2713";
-  color: var(--accent-ink);
+  color: var(--ok-ink);
   font-size: 11px;
   font-weight: 700;
   line-height: 1;
@@ -1586,7 +1616,7 @@ h3[tabindex="-1"]:focus-visible {
 
 .browse__item:hover {
   background: var(--surface);
-  color: var(--accent-hover);
+  color: var(--ink);
 }
 
 .browse__name {
@@ -1623,13 +1653,17 @@ h3[tabindex="-1"]:focus-visible {
   margin-top: 18px;
 }
 
-/* Step 1 is a confirmation, so the confirmation is the biggest thing on it. */
+/* Step 1 is a confirmation, so the confirmation is the biggest thing on it: a sentence
+   on the ground, not a box. */
 .readout--lead {
   margin-top: 22px;
 }
 
 .readout--lead .note {
-  padding: 18px 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .readout--lead .note__body {
@@ -1710,15 +1744,19 @@ h3[tabindex="-1"]:focus-visible {
   color: var(--err);
 }
 
+/* Information, not a second accent: Surface, Mist, Paper. */
 .note--accent {
-  border-color: var(--accent-line);
-  background: var(--accent-soft);
+  border-color: var(--line-strong);
+  background: var(--surface);
   color: var(--ink-2);
 }
 
-.note--accent strong,
+.note--accent strong {
+  color: var(--ink);
+}
+
 .note--accent .icon {
-  color: var(--accent-hover);
+  color: var(--ink-3);
 }
 
 .note__body {
@@ -1769,8 +1807,8 @@ h3[tabindex="-1"]:focus-visible {
 }
 
 .mode input:checked + .mode__card {
-  border-color: var(--accent);
-  background: var(--accent-soft);
+  border-color: var(--ink-2);
+  background: var(--surface);
 }
 
 /* No icon tile: the words carry the option. */
@@ -1803,7 +1841,7 @@ h3[tabindex="-1"]:focus-visible {
 }
 
 .mode input:checked + .mode__card .mode__tag {
-  color: var(--accent-hover);
+  color: var(--ink-2);
 }
 
 .mode__body {
@@ -1856,9 +1894,9 @@ h3[tabindex="-1"]:focus-visible {
 }
 
 .mode input:checked + .mode__card .mode__check {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: var(--accent-ink);
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--ok-ink);
 }
 
 /* -------------------------------------------------------------- terminal -- */
@@ -2021,20 +2059,6 @@ h3[tabindex="-1"]:focus-visible {
   min-height: 24px;
   padding: 2px 0;
   cursor: pointer;
-  list-style: none;
-}
-
-.tree details > summary::-webkit-details-marker {
-  display: none;
-}
-
-.tree details > summary .tree__name::after {
-  content: " \25B8";
-  color: var(--ink-3);
-}
-
-.tree details[open] > summary .tree__name::after {
-  content: " \25BE";
 }
 
 /* The machinery that keeps the brain working, folded to one faint row. */
@@ -2068,11 +2092,11 @@ h3[tabindex="-1"]:focus-visible {
   position: sticky;
   top: var(--topbar-h);
   z-index: 2;
-  margin: 18px -36px 0;
-  padding: 16px 36px 17px;
+  margin: 18px 0 0;
+  padding: 16px 0 17px;
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
-  background: var(--surface);
+  background: var(--bg);
 }
 
 .plan-sum__lead {
@@ -2145,11 +2169,11 @@ h3[tabindex="-1"]:focus-visible {
 }
 
 .runstep[data-state="running"] {
-  color: var(--accent-hover);
+  color: var(--ink-2);
 }
 
 .runstep[data-state="running"] .runstep__icon {
-  border-color: var(--accent);
+  border-color: var(--ink);
   border-top-color: transparent;
   animation: spin 0.7s linear infinite;
 }
@@ -2254,6 +2278,10 @@ h3[tabindex="-1"]:focus-visible {
 }
 
 .row__which summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
   cursor: pointer;
   color: var(--ink-2);
   font-size: 14px;
@@ -2368,9 +2396,9 @@ h3[tabindex="-1"]:focus-visible {
 }
 
 .citem[data-source="discovered"] .citem__box {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-  color: var(--accent-hover);
+  border-color: var(--ink-2);
+  background: transparent;
+  color: var(--ink-2);
 }
 
 .citem__found {
@@ -2421,6 +2449,10 @@ h3[tabindex="-1"]:focus-visible {
 
 /* The advanced tier folds away; its summary is the group label. */
 .cmd-adv > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
   margin-bottom: 8px;
   padding-left: 12px;
   color: var(--ink-3);
@@ -2428,20 +2460,7 @@ h3[tabindex="-1"]:focus-visible {
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.14em;
-  list-style: none;
   text-transform: uppercase;
-}
-
-.cmd-adv > summary::-webkit-details-marker {
-  display: none;
-}
-
-.cmd-adv > summary::after {
-  content: " \25B8";
-}
-
-.cmd-adv[open] > summary::after {
-  content: " \25BE";
 }
 
 .cmd-adv > summary:hover {
@@ -2490,6 +2509,20 @@ h3[tabindex="-1"]:focus-visible {
   min-width: 0;
 }
 
+/* The form and the result sit on the ground, one hairline between them. */
+.cmd-panel .card {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+#cmd-result {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+
 .form-grid {
   display: grid;
   gap: 16px;
@@ -2509,7 +2542,7 @@ h3[tabindex="-1"]:focus-visible {
 
 .progress {
   height: 3px;
-  margin: 0 -24px 18px;
+  margin: 0 0 18px;
   overflow: hidden;
   background: var(--surface-3);
 }
@@ -2646,8 +2679,7 @@ details.raw > summary:hover {
    these, closed by default. Plain-language copy above it never carries a path. */
 .tech {
   margin-top: 18px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
+  border-top: 1px solid var(--line);
   background: transparent;
 }
 
@@ -2656,27 +2688,11 @@ details.raw > summary:hover {
   align-items: center;
   gap: 8px;
   min-height: 44px;
-  padding: 10px 16px;
-  border-radius: var(--r-lg);
+  padding: 12px 0;
   color: var(--ink-3);
   cursor: pointer;
   font-size: 14px;
   font-weight: 700;
-  list-style: none;
-}
-
-.tech__sum::-webkit-details-marker {
-  display: none;
-}
-
-.tech__sum::before {
-  content: "\002B";
-  color: var(--ink-3);
-  font-size: 15px;
-}
-
-.tech[open] > .tech__sum::before {
-  content: "\2212";
 }
 
 .tech__sum:hover {
@@ -2684,7 +2700,7 @@ details.raw > summary:hover {
 }
 
 .tech__body {
-  padding: 2px 16px 16px;
+  padding: 2px 0 16px;
 }
 
 .tech__body > * + * {
@@ -2701,12 +2717,12 @@ details.raw > summary:hover {
 }
 
 .tech--quiet {
-  border-style: dashed;
+  border-top-style: solid;
 }
 
 /* ------------------------------------------------------ waiting result --- */
 .card--waiting {
-  border-style: dashed;
+  border: 0;
   background: transparent;
 }
 
@@ -2714,21 +2730,12 @@ details.raw > summary:hover {
   color: var(--ink-2);
 }
 
-.waiting__rule {
-  height: 96px;
-  margin-top: 14px;
-  border-radius: var(--r);
-  background: repeating-linear-gradient(
-    -45deg,
-    var(--surface-2),
-    var(--surface-2) 10px,
-    transparent 10px,
-    transparent 20px
-  );
+.card--waiting .term-wrap {
+  margin-top: 16px;
 }
 
 .card--preview {
-  border-color: var(--accent-line);
+  border-color: var(--line-strong);
 }
 
 .card--preview > * + * {
@@ -2805,8 +2812,16 @@ details.raw > summary:hover {
 }
 
 .iv-rail__item[data-state="current"] .iv-rail__dot {
-  border-color: var(--accent);
-  box-shadow: inset 0 0 0 3px var(--accent);
+  border-color: var(--ink);
+  box-shadow: inset 0 0 0 3px var(--ink);
+}
+
+/* The interview sits on the ground; the assist offer is its one contained element. */
+.iv-card {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .iv-card > * + * {
@@ -2823,9 +2838,9 @@ details.raw > summary:hover {
 
 /* What is on file now, read as prose; the box below holds the raw text to edit. */
 .iv-current {
-  padding: 16px 18px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-lg);
+  padding: 16px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
 }
 
 .iv-current__label {
@@ -2849,9 +2864,15 @@ details.raw > summary:hover {
 
 .assist {
   padding: 18px 20px;
-  border: 1px solid var(--accent-line);
+  border: 1px solid var(--line-strong);
   border-radius: var(--r-lg);
-  background: var(--accent-soft);
+  background: transparent;
+}
+
+/* The offer is a ghost button in Paper: the view's one Ember object is the primary. */
+.assist__go {
+  border-color: var(--line-strong);
+  color: var(--ink);
 }
 
 .assist > * + * {
@@ -2894,7 +2915,7 @@ details.raw > summary:hover {
   max-height: 16rem;
   overflow: auto;
   padding: 14px 16px;
-  border: 1px solid var(--accent-line);
+  border: 1px solid var(--line-strong);
   border-radius: var(--r);
   background: var(--bg);
   color: var(--ink);
@@ -2996,10 +3017,6 @@ details.raw > summary:hover {
   .ledger__label {
     grid-column: 1 / -1;
     padding-top: 0;
-    color: var(--ink-3);
-    font-size: 13px;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
   }
 
   .ledger__row > .ledger__end {
@@ -3047,11 +3064,7 @@ details.raw > summary:hover {
 
   .wizard__body {
     min-height: 0;
-    padding: 24px 20px 24px;
-  }
-
-  .wizard__card {
-    border-radius: var(--r-lg);
+    padding: 0 0 24px;
   }
 
   .step__title {
@@ -3101,8 +3114,8 @@ details.raw > summary:hover {
   }
 
   .plan-sum {
-    margin: 14px -20px 0;
-    padding: 12px 20px 13px;
+    margin: 14px 0 0;
+    padding: 12px 0 13px;
   }
 
   .plan-sum__lead {
@@ -3243,6 +3256,13 @@ details.raw > summary:hover {
     left: 24px;
     right: 24px;
     text-align: center;
+  }
+}
+
+/* A turned chevron is a state, not a motion; it survives the transform reset above. */
+@media (prefers-reduced-motion: reduce) {
+  details[open] > summary .disc {
+    transform: rotate(180deg) !important;
   }
 }
 

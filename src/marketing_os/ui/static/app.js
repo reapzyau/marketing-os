@@ -1236,7 +1236,7 @@
     } else if (paths.length > 1) {
       body.push(
         el("details", { class: "row__which" }, [
-          el("summary", { text: "Show which " + paths.length }),
+          el("summary", {}, [icon("down", "disc"), el("span", { text: "Show which " + paths.length })]),
           el(
             "ul",
             { class: "row__paths", role: "list" },
@@ -1272,7 +1272,10 @@
    * these, closed by default, so no filesystem path lands in plain-language copy. */
   function tech(kids, label) {
     return el("details", { class: "tech" }, [
-      el("summary", { class: "tech__sum", text: label || "Show the technical bit" }),
+      el("summary", { class: "tech__sum" }, [
+        icon("down", "disc"),
+        el("span", { text: label || "Show the technical bit" }),
+      ]),
       el("div", { class: "tech__body" }, kids),
     ]);
   }
@@ -1779,7 +1782,7 @@
       var name = brain.name || "This brain";
       var label = placeLabel(brain.path);
       var text = "Open " + name;
-      if (seen[brain.name.trim().toLowerCase()] > 1) text += " \u2014 " + folderName(brain.path);
+      if (seen[brain.name.trim().toLowerCase()] > 1) text += " in " + folderName(brain.path);
       var button = el("button", {
         class: "btn btn--secondary",
         type: "button",
@@ -2865,7 +2868,7 @@
             "The app asks one question at a time, in plain English, and writes each answer to the " +
               "right file for you. You will not open a terminal and you will not edit anything by " +
               "hand. If Claude Code or Codex is on this computer, one button can also interview you " +
-              "and draft an answer for you to check — it only ever runs when you press it.",
+              "and draft an answer for you to check. It only ever runs when you press it.",
           ]),
         ])
       );
@@ -3152,7 +3155,7 @@
 
   function assistOffer(ctx) {
     var button = el("button", {
-      class: "btn btn--secondary assist__go",
+      class: "btn btn--ghost assist__go",
       type: "button",
       "aria-describedby": "iv-assist-cost",
     });
@@ -3618,7 +3621,7 @@
                 : // Not "everything else stays": render_answer keeps the frontmatter and
                   // the heading and replaces the whole body, other sections included. The
                   // diff directly below shows it, so the sentence above it must agree.
-                  " with the words above \u2014 any other sections in it included. Its heading and the details at the top of the file stay as they are.",
+                  " with the words above, any other sections in it included. Its heading and the details at the top of the file stay as they are.",
             ]),
             short.length
               ? note("warn", "alert", [
@@ -3983,6 +3986,7 @@
       class: "ledger__line" + (answered ? "" : " ledger__line--help"),
       text: info.body,
     });
+    var less = el("span", { class: "ledger__less", text: "Show less", hidden: true });
     var open = el(
       "button",
       {
@@ -3992,7 +3996,7 @@
         "aria-controls": panelId,
         title: (answered ? "Read your answer about " : "Read the question about ") + info.title.toLowerCase(),
       },
-      [line]
+      [line, less]
     );
     var full = el("div", { class: "ledger__full", id: panelId, hidden: true });
     var change = el("button", {
@@ -4012,12 +4016,16 @@
       class: "ledger__state" + (!answered && isRequired ? " ledger__state--needed" : ""),
       text: answered ? "Answered" : isRequired ? "Needed" : "optional",
     });
-    var body = el("div", { class: "ledger__body" }, [open, full]);
+    // The prose takes the line's slot: it sits above the button, and the button's
+    // own words swap from the first line to "Show less".
+    var body = el("div", { class: "ledger__body" }, [full, open]);
     var row = ledgerRow(info.title, body, [state, change]);
 
     function setOpen(on) {
       open.setAttribute("aria-expanded", on ? "true" : "false");
       show(full, on);
+      show(line, !on);
+      show(less, on);
       setClass(row, "ledger__row--open", on);
     }
     open.addEventListener("click", function () {
@@ -4048,33 +4056,19 @@
   }
 
   /* What a row holds once it opens. The answer is the operator's own words; the file it
-   * came from is the checker's data and rides in a .row__path. */
+   * came from is the checker's data and rides in a .row__path. The row's one Change
+   * control stays where it was, at the end of the row. */
   function fillAnswer(entry, record) {
     var body = record && record.body ? String(record.body) : "";
     var question = record && record.question ? String(record.question) : "";
     var where =
       entry.field && fieldSource(entry.field) === "discovered" ? entry.field.discovered_path || "" : "";
-    var change = el("button", {
-      class: "btn btn--secondary btn--sm",
-      type: "button",
-      text: entry.answered ? "Change this answer" : "Answer this question",
-      on: {
-        click: function () {
-          openInterview(entry.key);
-        },
-      },
-    });
     if (body) {
       entry.line.textContent = firstLine(body) || entry.info.body;
       setClass(entry.line, "ledger__line--help", false);
       fill(entry.full, [
         prose(body),
         where ? el("p", { class: "row__path", text: "Found in " + where }) : null,
-        el("div", { class: "btn-row" }, [change]),
-        el("p", {
-          class: "ledger__note",
-          text: "Change opens the interview on this question. Your assistant can draft a new answer there.",
-        }),
       ]);
       return;
     }
@@ -4083,7 +4077,6 @@
         question ? el("p", { text: question }) : null,
         el("p", { text: entry.answered ? "The answer on file could not be read." : entry.info.body }),
       ]),
-      el("div", { class: "btn-row" }, [change]),
     ]);
   }
 
@@ -4656,7 +4649,7 @@
         // The advanced tier folds away by default; its summary is the group label.
         if (group.folded) {
           return el("details", { class: "cmd-group cmd-adv" }, [
-            el("summary", { text: group.label }),
+            el("summary", {}, [icon("down", "disc"), el("span", { text: group.label })]),
             list,
           ]);
         }
@@ -4779,7 +4772,7 @@
           commandInfo(command).title.toLowerCase() +
           " above and what came back lands in this panel: anything wrong first, then anything that changed.",
       }),
-      el("div", { class: "waiting__rule", "aria-hidden": "true" }),
+      terminal("mos " + command, "The command behind this"),
     ]);
   }
 
