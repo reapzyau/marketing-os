@@ -1116,6 +1116,11 @@ details[open] > summary .disc {
   font-weight: 700;
 }
 
+/* The first heading takes the clamped line's slot, so it sits on the label's baseline. */
+.ledger__prose > .ledger__prose-heading:first-child {
+  margin-top: 0;
+}
+
 .ledger__prose p {
   color: var(--ink-2);
   overflow-wrap: anywhere;
