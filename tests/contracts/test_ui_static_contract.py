@@ -16,6 +16,7 @@ from typing import NamedTuple
 import pytest
 
 from marketing_os.core import assist as assist_engine
+from marketing_os.core import graphlint, skills, status, validation
 from marketing_os.ui.server import static_root
 
 STATIC = static_root()
@@ -855,3 +856,52 @@ def test_found_brains_come_from_a_look_at_the_chosen_place_never_a_home_sweep() 
     assert '"/api/browse"' in refresh
     assert "wizPlace() !== place" in refresh
     assert "existing_brains" not in JS
+
+
+# --- findings reach the reader in plain words ----------------------------------------
+# The checker's messages are written for a terminal: "No contract block. See CONTRACT.md
+# for the five required keys." told a marketer to open the file the row above said was
+# missing. FINDING_COPY in app.js carries one sentence and one recovery per code. This
+# reads the codes the checker can emit back against that table, so a new code cannot ship
+# without its sentence; an untranslated code still renders the checker's words, so the
+# failure mode is dull, never silent.
+
+CHECKER_MODULES = (validation, graphlint, status, skills)
+
+
+def checker_codes() -> set[str]:
+    codes: set[str] = set()
+    for module in CHECKER_MODULES:
+        source = Path(module.__file__).read_text(encoding="utf-8")
+        codes.update(re.findall(r'finding\(\s*"([a-z-]+)"', source))
+    return codes
+
+
+def finding_copy_codes() -> set[str]:
+    table = JS.split("var FINDING_COPY = {", 1)[1].split("\n  };", 1)[0]
+    return set(re.findall(r'^\s+"([a-z-]+)": \{', table, re.M))
+
+
+def test_every_checker_code_has_a_plain_sentence() -> None:
+    assert checker_codes() - finding_copy_codes() == set()
+
+
+def test_the_plain_sentences_carry_a_count_where_more_than_one_can_happen() -> None:
+    """A `many` sentence that never says how many reads as if there were one."""
+    table = JS.split("var FINDING_COPY = {", 1)[1].split("\n  };", 1)[0]
+    entries = re.findall(r'"([a-z-]+)": \{\s*one: "([^"]+)",\s*many: "([^"]+)"', table)
+    assert entries, "the table did not parse"
+    for code, one, many in entries:
+        if one != many:
+            assert "{n}" in many, f"{code}: the many sentence has no count"
+
+
+def test_the_reader_is_never_told_about_a_schema() -> None:
+    """The brain has folders and files where it expects them; it has no schema."""
+    # A bare kebab-case literal is a code the envelope carries, never a sentence shown.
+    hits = [
+        text
+        for text in user_facing_copy()
+        if not re.fullmatch(r"[a-z-]+", text) and re.search(r"\bschemas?\b", text, re.I)
+    ]
+    assert hits == [], hits

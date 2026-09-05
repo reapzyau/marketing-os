@@ -294,7 +294,7 @@
       group: "look",
       order: 3,
       title: "Validate the structure",
-      blurb: "Checks every folder and file against the schema and reports anything out of place.",
+      blurb: "Checks that every folder and file is where the brain expects it, and reports anything out of place.",
     },
     "context show": {
       group: "look",
@@ -331,7 +331,7 @@
       order: 9,
       title: "Can an assistant interview you",
       blurb:
-        "Which agent runtimes on this computer can actually answer. It runs their version " +
+        "Which assistants on this computer can actually answer. It runs their version " +
         "check and asks no model, so it costs nothing.",
     },
     "assist ask": {
@@ -382,7 +382,7 @@
     migrate: {
       group: "change",
       order: 7,
-      title: "Move off-schema files",
+      title: "Tidy files into place",
       blurb: "Diagnoses files sitting in the wrong place, and applies a routing plan when you have one.",
     },
     "index build": {
@@ -1051,25 +1051,205 @@
     return "pill";
   }
 
-  function findingRows(findings) {
-    return el(
-      "ul",
-      { class: "rows", role: "list" },
-      findings.map(function (item) {
-        var look = severityIcon(item.severity);
-        return el("li", { class: "row" }, [
-          icon(look.name, "row__icon " + look.cls),
-          el("div", { class: "row__body" }, [
-            el("p", { class: "row__msg", text: item.message }),
-            // Envelope-reported file locations: the checker's own data, not our prose.
-            item.path ? el("p", { class: "row__path", text: item.path }) : null,
-          ]),
-          el("span", { class: "row__end" }, [
-            el("span", { class: severityPill(item.severity), text: item.severity }),
-          ]),
-        ]);
+  /* One plain sentence per checker code, and what to do about it. The checker's own
+   * messages are written for a terminal and a maintainer; the operator reading this page
+   * is neither. `one` and `many` take the count of findings that share the code; `fix`
+   * is the recovery, in words. A code that is not here falls back to the checker's own
+   * message, so a new finding is never hidden — it is only un-translated. Authored copy,
+   * like heroPlan: facts (counts, paths) come from the envelope; these sentences are ours. */
+  var FINDING_COPY = {
+    "missing-file": {
+      one: "A required file is missing.",
+      many: "{n} required files are missing.",
+      fix: "Setting the brain up again adds only what is missing and leaves every answer as it is.",
+    },
+    "missing-directory": {
+      one: "A required folder is missing.",
+      many: "{n} required folders are missing.",
+      fix: "Setting the brain up again adds only what is missing and leaves every answer as it is.",
+    },
+    "file-discovered": {
+      one: "A required answer lives in a file of your own naming.",
+      many: "{n} required answers live in files of your own naming.",
+      fix: "It counts as answered. The interview writes to the expected place whenever you change it.",
+    },
+    "missing-frontmatter": {
+      one: "A document has no summary header yet.",
+      many: "{n} documents have no summary header yet.",
+      fix:
+        "The header is a short block at the top saying what the document is and when it was " +
+        "written; assistants read it before the body. Saving an answer from the interview adds " +
+        "one, or ask your assistant to add the rest.",
+    },
+    "unlinked-document": {
+      one: "A document links to nothing else.",
+      many: "{n} documents link to nothing else.",
+      fix:
+        "Links are how an assistant moves between related documents. The related tool " +
+        "proposes them and writes nothing until you apply.",
+    },
+    "output-without-sources": {
+      one: "A deliverable does not say what it was built from.",
+      many: "{n} deliverables do not say what they were built from.",
+      fix: "Add the sources it drew on to its summary header.",
+    },
+    "missing-connective-key": {
+      one: "A document is not connected to anything.",
+      many: "{n} documents are not connected to anything.",
+      fix: "Its summary header needs a sources, related, or produced-by line.",
+    },
+    "unknown-top-level": {
+      one: "A file or folder sits at the top level where the brain does not expect one.",
+      many: "{n} files or folders sit at the top level where the brain does not expect them.",
+      fix: "The migrate tool works out where each one belongs and moves it when you say so.",
+    },
+    "invalid-dated-artifact": {
+      one: "A folder in the log is not named by date.",
+      many: "{n} folders in the log are not named by date.",
+      fix: "Log folders are named year-month-day-topic so they sort by when they happened.",
+    },
+    "invalid-year": {
+      one: "A folder in the log is not named for a year.",
+      many: "{n} folders in the log are not named for a year.",
+      fix: "Log years are four digits.",
+    },
+    "invalid-quarter": {
+      one: "A folder in the log is not named for a quarter.",
+      many: "{n} folders in the log are not named for a quarter.",
+      fix: "Quarters are Q1 to Q4.",
+    },
+    "invalid-month": {
+      one: "A folder in the log is not named for a month.",
+      many: "{n} folders in the log are not named for a month.",
+      fix: "Months are two digits, 01 to 12.",
+    },
+    "invalid-report-month": {
+      one: "A report folder is not named for a month.",
+      many: "{n} report folders are not named for a month.",
+      fix: "Report folders are named year-month.",
+    },
+    "missing-or-invalid-config": {
+      one: "The brain's settings file is missing or unreadable.",
+      many: "The brain's settings file is missing or unreadable.",
+      fix: "Setting the brain up again writes a fresh one and leaves every answer as it is.",
+    },
+    "unsupported-schema": {
+      one: "This brain was made by a version the app does not recognise.",
+      many: "This brain was made by a version the app does not recognise.",
+      fix: "Update marketing-os, then check again.",
+    },
+    "missing-client-registry": {
+      one: "An agency brain needs a client list, and this one has none.",
+      many: "An agency brain needs a client list, and this one has none.",
+      fix: "Setting the brain up again adds it.",
+    },
+    "set-mode-agency": {
+      one: "This brain holds a client list but is not set up as an agency.",
+      many: "This brain holds a client list but is not set up as an agency.",
+      fix: "Change its mode to agency in the settings file, or remove the client list.",
+    },
+    "unexpected-clients-folder": {
+      one: "There is a clients folder, but only an agency brain keeps one.",
+      many: "There is a clients folder, but only an agency brain keeps one.",
+      fix: "Move it out, or set the brain up as an agency.",
+    },
+    "invalid-type": {
+      one: "A document's summary header names a kind of document the brain does not use.",
+      many: "{n} documents' summary headers name a kind of document the brain does not use.",
+      fix: "The kinds the brain uses are listed in the contract at the root of the brain.",
+    },
+    "invalid-status": {
+      one: "A document's summary header names a status the brain does not use.",
+      many: "{n} documents' summary headers name a status the brain does not use.",
+      fix: "The statuses the brain uses are listed in the contract at the root of the brain.",
+    },
+    "skill-conflict": {
+      one: "Something that is not a shared skill sits where a skill belongs.",
+      many: "{n} things that are not shared skills sit where skills belong.",
+      fix: "Move it, then sync the skills again.",
+    },
+    "runtime-not-ready": {
+      one: "Claude Code and Codex cannot both see the skills.",
+      many: "Claude Code and Codex cannot both see the skills.",
+      fix: "Sync the skills to give each assistant its own copy.",
+    },
+    "not-marketing-os": {
+      one: "This folder is not a brain yet.",
+      many: "This folder is not a brain yet.",
+      fix: "Set one up here, or point at the right folder.",
+    },
+  };
+
+  /* Findings that share a code are one thing that is wrong in several places, and are
+   * read as one row: ten documents without a header is one sentence and a list of ten
+   * paths, not ten sentences. Order is the checker's, errors first, first appearance. */
+  function groupFindings(findings) {
+    var groups = [];
+    var byKey = {};
+    findings.forEach(function (item) {
+      if (!item) return;
+      var key = (item.code || "") + "|" + (item.severity || "");
+      var group = byKey[key];
+      if (!group) {
+        group = byKey[key] = {
+          code: item.code || "",
+          severity: item.severity || "info",
+          message: item.message || "",
+          items: [],
+        };
+        groups.push(group);
+      }
+      group.items.push(item);
+    });
+    return groups;
+  }
+
+  function findingWords(group) {
+    var copy = FINDING_COPY[group.code];
+    var n = group.items.length;
+    if (!copy) return { title: group.message, fix: "" };
+    var title = n === 1 ? copy.one : copy.many.replace("{n}", String(n));
+    return { title: title, fix: copy.fix };
+  }
+
+  function findingRow(group) {
+    var look = severityIcon(group.severity);
+    var words = findingWords(group);
+    var paths = group.items
+      .map(function (item) {
+        return item.path;
       })
-    );
+      .filter(Boolean);
+    var body = [el("p", { class: "row__msg", text: words.title })];
+    if (words.fix) body.push(el("p", { class: "row__sub", text: words.fix }));
+    // Envelope-reported file locations: the checker's own data, not our prose.
+    if (paths.length === 1) {
+      body.push(el("p", { class: "row__path", text: paths[0] }));
+    } else if (paths.length > 1) {
+      body.push(
+        el("details", { class: "row__which" }, [
+          el("summary", { text: "Show which " + paths.length }),
+          el(
+            "ul",
+            { class: "row__paths", role: "list" },
+            paths.map(function (path) {
+              return el("li", { class: "row__path", text: path });
+            })
+          ),
+        ])
+      );
+    }
+    return el("li", { class: "row" }, [
+      icon(look.name, "row__icon " + look.cls),
+      el("div", { class: "row__body" }, body),
+      el("span", { class: "row__end" }, [
+        el("span", { class: severityPill(group.severity), text: group.severity }),
+      ]),
+    ]);
+  }
+
+  function findingRows(findings) {
+    return el("ul", { class: "rows", role: "list" }, groupFindings(findings).map(findingRow));
   }
 
   function emptyState(title, body, iconName) {
@@ -2031,12 +2211,22 @@
     var readout = note("info", "info", [
       "Its folder will be called ",
       el("code", { text: folderName(target) }),
-      ", " + placeWords(splitPath(target).parent) + ". If you ever put this brain on GitHub, ",
-      el("code", { text: repo }),
-      " is the repository name it suggests.",
+      ", " + placeWords(splitPath(target).parent) + ".",
     ]);
     readout.setAttribute("title", target);
-    fill(host, readout);
+    fill(host, [
+      readout,
+      tech(
+        [
+          el("p", { class: "tech__line" }, [
+            "If you ever put this brain on GitHub, ",
+            el("code", { text: repo }),
+            " is the name it suggests.",
+          ]),
+        ],
+        "If you use GitHub"
+      ),
+    ]);
   }
 
   var STEP_STATE = { done: "Completed", current: "Current step", todo: "Not started" };
@@ -2421,8 +2611,13 @@
     }
 
     if (parts.setup.length) {
-      add(frag, subhead("Then, inside that folder"));
-      add(frag, changesList(parts.setup, "Setup steps"));
+      add(
+        frag,
+        tech(
+          [subhead("Then, inside that folder"), changesList(parts.setup, "Setup steps")],
+          "Show the setup steps that run inside it"
+        )
+      );
     }
 
     var warnings = bySeverity(envelope, "warning");
@@ -3845,16 +4040,7 @@
         actions: [{ kind: "wizard", label: "Set up a brain" }],
       };
     }
-    if (id === "repair-structure") {
-      return {
-        title: "Some files are not where the schema expects them.",
-        body: "Nothing is lost. Run the validator to see exactly which ones, then move or rename them.",
-        actions: [
-          { kind: "run", label: "Show me what is wrong", command: "validate" },
-          { kind: "goto", label: "Open the migrate tool", command: "migrate" },
-        ],
-      };
-    }
+    if (id === "repair-structure") return repairPlan(status);
     if (id === "sync-skills") {
       return {
         title: "Your assistants cannot see the latest skills.",
@@ -3907,6 +4093,81 @@
     };
   }
 
+  /* The next_action id only says "repair"; what to repair is in the findings. The hero is
+   * built from the worst one, so its title names the thing that is wrong and its button
+   * does the thing that fixes it. Setting the brain up again is safe on an existing brain:
+   * it creates only what is missing and never touches a file that exists. */
+  function repairPlan(status) {
+    var groups = groupFindings(findingsOf(status));
+    var top =
+      groups.filter(function (group) {
+        return group.severity === "error";
+      })[0] || groups[0];
+    var code = top ? top.code : "";
+    var n = top ? top.items.length : 0;
+    var name = (status.business || {}).name || "";
+    var mode = status.mode;
+    var canScaffold = Boolean(name) && (mode === "in-house" || mode === "agency");
+    var showAll = { kind: "run", label: "Show everything the check found", command: "validate" };
+
+    if (code === "missing-file" || code === "missing-directory") {
+      var what = plural(n, code === "missing-file" ? "required file" : "required folder");
+      return {
+        title: "The brain is missing " + what + ".",
+        body:
+          "Nothing else is affected. Setting it up again adds what is missing, plus any " +
+          "housekeeping files a newer version brought, and leaves every answer as it is. You " +
+          "see the full list before anything is written.",
+        actions: canScaffold
+          ? [
+              {
+                kind: "plan-apply",
+                label: "Preview the missing pieces",
+                command: "onboard",
+                args: { name: name, mode: mode },
+                applyLabel: "Add the missing pieces",
+              },
+              { kind: "run", label: showAll.label, command: "validate", subtle: true },
+            ]
+          : [showAll],
+      };
+    }
+    if (code === "missing-frontmatter") {
+      return {
+        title: findingWords(top).title,
+        body: FINDING_COPY["missing-frontmatter"].fix,
+        actions: [{ kind: "run", label: "Show which documents", command: "validate" }],
+      };
+    }
+    if (code === "unlinked-document") {
+      return {
+        title: findingWords(top).title,
+        body: FINDING_COPY["unlinked-document"].fix,
+        actions: [
+          {
+            kind: "plan-apply",
+            label: "Preview the links",
+            command: "related",
+            applyLabel: "Add the links",
+          },
+          { kind: "run", label: showAll.label, command: "validate", subtle: true },
+        ],
+      };
+    }
+    if (top && FINDING_COPY[code]) {
+      return {
+        title: findingWords(top).title,
+        body: FINDING_COPY[code].fix,
+        actions: [showAll, { kind: "goto", label: "Open the migrate tool", command: "migrate" }],
+      };
+    }
+    return {
+      title: "Some files are out of place.",
+      body: "Nothing is lost. Run the check to see exactly which, then move or rename them.",
+      actions: [showAll, { kind: "goto", label: "Open the migrate tool", command: "migrate" }],
+    };
+  }
+
   function tile(ok, title, body) {
     return el("div", { class: "tile" }, [
       el("span", { class: "tile__icon " + (ok ? "tile__icon--ok" : "tile__icon--warn") }, [
@@ -3935,7 +4196,7 @@
         checks.structure !== false,
         "Structure",
         checks.structure !== false
-          ? "Every folder and file is where the schema expects it."
+          ? "Every folder and file is where it should be."
           : plural(errors, "thing") + " out of place."
       ),
       tile(
@@ -4213,19 +4474,19 @@
     var card = el("section", { class: "card" }, [
       el("div", { class: "card__head" }, [
         el("div", {}, [
-          el("h2", { class: "card__title", text: "Everything the checker found" }),
+          el("h2", { class: "card__title", text: "What the check found" }),
           el("p", {
             class: "card__sub",
             // The count is the checker's own, always. Only the rows are ever shortened,
             // and when they are this says so rather than leaving a shorter list to be
             // read as a shorter answer.
             text: withheld
-              ? "Straight from the checker. It found " +
+              ? "In plain words, grouped by what is wrong. It found " +
                 plural(total, "thing") +
                 "; the first " +
                 findings.length +
-                " are listed here, errors before warnings."
-              : "Straight from the checker. Nothing added, nothing hidden.",
+                " are here, errors before warnings."
+              : "In plain words, grouped by what is wrong. Open the checker for its exact wording.",
           }),
         ]),
         el("span", { class: "card__end" }, [

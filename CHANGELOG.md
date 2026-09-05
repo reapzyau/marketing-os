@@ -7,6 +7,17 @@ All notable changes to marketing-os are recorded here. Versions follow
 
 ### Fixed
 
+- **The dashboard reads findings to the operator in plain words.** The hero card keyed
+  a fixed sentence off the next-action id, so a missing `CONTRACT.md` was announced as
+  "files are not where the schema expects them" with a migrate button that could not
+  create a file, on every brain alike. It is now built from the worst finding: a missing
+  required file previews and applies a scaffold that adds only what is missing; documents
+  without a header or links get their own sentence and fix. Findings that share a code
+  are one row with a count and a closed list of where, instead of ten copies of the
+  checker's terminal message. `FINDING_COPY` in `app.js` carries one sentence and one
+  recovery per checker code, and a contract test fails when a code ships without one.
+  The word "schema" no longer reaches a reader; GitHub naming and the git setup steps sit
+  behind the technical disclosure.
 - **`mos doctor` agrees with `mos status` about discovered context.** On a brain whose
   brand, voice, audience, strategy and proof were answered in files of its owner's naming,
   status reported every field complete while doctor, reading the same brain in the same
