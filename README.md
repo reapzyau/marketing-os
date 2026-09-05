@@ -41,7 +41,7 @@ A source checkout is the contributor install. It stays supported, and it puts th
 on your path from the working tree, so edits show up without reinstalling:
 
 ```bash
-git clone https://github.com/reapzyau/marketing-os
+git clone https://github.com/the-vibe-marketing-lab/marketing-os
 cd marketing-os
 python -m pip install -e .
 mos install --runtime all --plan

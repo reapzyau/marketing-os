@@ -91,7 +91,7 @@ not in it. Merge the branch you are on into `main` first, and confirm the tree i
 
 ```bash
 # The local remote still uses the old repository name. Point it at the canonical one.
-git remote set-url origin https://github.com/reapzyau/marketing-os.git
+git remote set-url origin https://github.com/the-vibe-marketing-lab/marketing-os.git
 
 git status --short          # must be empty before you go on
 git switch main
